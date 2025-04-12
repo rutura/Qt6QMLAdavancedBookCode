@@ -1,0 +1,49 @@
+# Build directory
+build/
+
+# Qt-specific
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+Makefile*
+*build-*
+
+# CMake-specific
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# IDE-specific
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Compiled files
+*.o
+*.obj
+*.dll
+*.exe
+*.lib
+*.a
+*.so
+*.dylib
+
+# Debug files
+*.pdb
+*.ilk
+*.exp
+
+# Qt Creator CMake
+CMakeLists.txt.user*
