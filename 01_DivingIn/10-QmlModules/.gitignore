@@ -40,6 +40,9 @@ _deps
 *.so
 *.dylib
 
+# Configuration files
+*.ini
+
 # Debug files
 *.pdb
 *.ilk
