@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Item {
+Item{
     id: root
     width: 80
     height: 36
@@ -39,6 +39,7 @@ Item {
 
             Behavior on color { ColorAnimation { duration: theme.normalAnimation } }
         }
+
 
         // Sliding indicator
         Rectangle {
@@ -118,5 +119,10 @@ Item {
             duration: theme.fastAnimation
             easing.type: Easing.OutBack
         }
+
+
+
+
     }
+
 }

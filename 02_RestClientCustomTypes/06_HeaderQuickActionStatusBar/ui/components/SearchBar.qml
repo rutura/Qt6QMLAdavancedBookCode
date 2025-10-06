@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Item {
+Item{
     id: root
     height: 56
 
@@ -11,6 +11,7 @@ Item {
     property string lastUser: ""
     signal searchRequested(string query)
     signal userSearchRequested(string username)
+
 
     // Main container
     Rectangle {
@@ -33,6 +34,14 @@ Item {
             anchors.leftMargin: 20
             anchors.rightMargin: 8
             spacing: 12
+
+            /*
+            Rectangle{
+                color: "red"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+            */
 
             // Simple search icon
             Text {
@@ -103,6 +112,7 @@ Item {
                 }
             }
 
+            //Search button
             // Custom search button using Rectangle
             Rectangle {
                 id: searchButton
@@ -141,15 +151,14 @@ Item {
                     color: Qt.rgba(0, 0, 0, 0.1)
                 }
             }
+
+            //End of the search button
+
+
+
+
         }
 
-        // Container shadow
-        Rectangle {
-            anchors.fill: parent
-            anchors.topMargin: 1
-            z: -1
-            radius: parent.radius
-            color: Qt.rgba(0, 0, 0, 0.05)
-        }
     }
+
 }
