@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import GitHubClient 1.0
 
 Window {
     id: window
@@ -9,7 +10,115 @@ Window {
     visible: true
     title: "GitHub Explorer"
 
+    property var repositories: [
+        {
+            fullName: "microsoft/vscode",
+            description: "Visual Studio Code - Open source code editor",
+            language: "TypeScript",
+            stargazersCount: 142000,
+            forksCount: 25000,
+            isPrivate: false,
+            updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+            htmlUrl: "https://github.com/microsoft/vscode"
+        },
+        {
+            fullName: "torvalds/linux",
+            description: "Linux kernel source tree",
+            language: "C",
+            stargazersCount: 165000,
+            forksCount: 48000,
+            isPrivate: false,
+            updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+            htmlUrl: "https://github.com/torvalds/linux"
+        }
+    ]
 
+    // Modern theme system
+    Theme {
+        id: appTheme
+    }
+
+    // Background with theme-aware gradient
+    Rectangle {
+        anchors.fill: parent
+        color: appTheme.background
+
+        Behavior on color { ColorAnimation { duration: appTheme.normalAnimation } }
+    }
+
+    ColumnLayout{
+        anchors.fill: parent
+        anchors.margins: 0
+        spacing: 0
+
+        //Header
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 100
+            color: appTheme.surface
+            border.color: appTheme.borderLight
+            border.width: 1
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: appTheme.normalAnimation
+                }
+            }
+            Behavior on border.color {
+                ColorAnimation { duration: appTheme.normalAnimation }
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 32
+                spacing: 32
+
+                /*
+                Rectangle{
+                    color: "red"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                }
+                */
+
+                // Modern logo
+                Rectangle {
+                    width: 56
+                    height: 56
+                    radius: 16
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: appTheme.accent }
+                        GradientStop { position: 1.0; color: appTheme.accentHover }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "🚀"
+                        font.pixelSize: 28
+                    }
+                }
+
+            }
+        }
+
+
+        //Grid Layout with cards
+        Rectangle{
+            color: "green"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+        }
+
+
+        //Status bar
+    }
+
+
+
+
+
+
+    /*
     // Modern theme system
         Theme {
             id: appTheme
@@ -360,4 +469,5 @@ Window {
                 }
             }
         }
+        */
 }
