@@ -101,6 +101,7 @@ Item {
                         switch(root.currentView) {
                         case "search": return "🔍 Search Results"
                         case "user": return "👤 User Repositories"
+                        case "myrepos": return "👤 My Repos"
                         default: return "🌟 Popular Repositories"
                         }
                     }
