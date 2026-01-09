@@ -43,6 +43,10 @@ set_target_properties(ContactManager PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
+target_include_directories(ContactManager
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 target_link_libraries(ContactManager
     PRIVATE Qt6::Quick
 )
