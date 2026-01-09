@@ -58,8 +58,8 @@ Contact::Contact(Contact &&other) noexcept
     , m_avatarUrl(std::move(other.m_avatarUrl))
     , m_tags(std::move(other.m_tags))
     , m_isFavorite(other.m_isFavorite)
-    , m_dateAdded(std::move(other.m_dateAdded))
-    , m_dateModified(std::move(other.m_dateModified))
+    , m_dateAdded(other.m_dateAdded)
+    , m_dateModified(other.m_dateModified)
     , m_contactFrequency(other.m_contactFrequency)
 {
 }
@@ -103,8 +103,8 @@ Contact& Contact::operator=(Contact &&other) noexcept
         m_avatarUrl = std::move(other.m_avatarUrl);
         m_tags = std::move(other.m_tags);
         m_isFavorite = other.m_isFavorite;
-        m_dateAdded = std::move(other.m_dateAdded);
-        m_dateModified = std::move(other.m_dateModified);
+        m_dateAdded = other.m_dateAdded;
+        m_dateModified = other.m_dateModified;
         m_contactFrequency = other.m_contactFrequency;
     }
     return *this;
