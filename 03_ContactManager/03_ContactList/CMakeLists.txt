@@ -19,7 +19,9 @@ set(PROJECT_SOURCES
 # QML files
 set(QML_FILES
     qml/Main.qml
-    qml/components/ContactFormDialog.qml
+    qml/components/ContactDelegate.qml
+    qml/components/FilterPanel.qml
+    qml/components/SearchBar.qml
     qml/pages/ContactListPage.qml
     qml/pages/ContactDetailPage.qml
 )

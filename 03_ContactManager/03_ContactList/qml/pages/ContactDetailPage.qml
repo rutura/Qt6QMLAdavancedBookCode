@@ -1,7 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import "../components"
-import ContactManagerApp
 
 /**
  * ContactDetailPage - Page for viewing detailed contact information

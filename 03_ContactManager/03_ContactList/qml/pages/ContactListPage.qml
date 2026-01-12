@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../components"
-import ContactManagerApp
 
 /**
  * ContactListPage - Main page showing the list of contacts
@@ -19,19 +18,112 @@ Page {
         color: "#F9FAFB"
     }
 
+    // Dummy contacts data
+    ListModel {
+        id: contactsModel
+        
+        Component.onCompleted: {
+            // Generate diverse dummy contacts
+            const firstNames = ["Emily", "Evelyn", "Evelyn", "Ethan", "Penelope", "Avery", "Hannah", "Isabella", "Jacob", "Liam",
+                              "Mia", "Noah", "Olivia", "Lucas", "Ava", "Mason", "Sophia", "Elijah", "Charlotte", "James",
+                              "Amelia", "Benjamin", "Harper", "William", "Ella", "Michael", "Abigail", "Alexander", "Emily", "Daniel",
+                              "Madison", "Henry", "Scarlett", "Matthew", "Grace", "David", "Chloe", "Joseph", "Victoria", "Samuel",
+                              "Lily", "Jackson", "Aria", "Sebastian", "Zoe", "Jack"]
+            
+            const lastNames = ["Adams", "Clark", "Nguyen", "Parker", "Johnson", "Nguyen", "Moore", "Garcia", "Rodriguez", "Wilson",
+                             "Martinez", "Anderson", "Taylor", "Thomas", "Hernandez", "Moore", "Martin", "Jackson", "Thompson", "White",
+                             "Lopez", "Lee", "Gonzalez", "Harris", "Young", "King", "Wright", "Scott", "Green", "Baker",
+                             "Adams", "Nelson", "Carter", "Mitchell", "Perez", "Roberts", "Turner", "Phillips", "Campbell", "Parker",
+                             "Evans", "Edwards", "Collins", "Stewart", "Morris", "Rogers"]
+            
+            const avatarColors = ["#16A34A", "#0EA5E9", "#8B5CF6", "#0D9488", "#EC4899", "#6366F1", "#F59E0B", "#EF4444", 
+                                 "#06B6D4", "#8B5CF6", "#10B981", "#F59E0B", "#6366F1", "#EC4899", "#14B8A6"]
+            
+            const tags = ["client", "alumni", "lead", "friends", "vendor", "prospect", "partner", "work", "family", "colleague"]
+            
+            for (let i = 0; i < 45; i++) {
+                const firstName = firstNames[i % firstNames.length]
+                const lastName = lastNames[i % lastNames.length]
+                const isFavorite = i < 6
+                
+                append({
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: firstName.toLowerCase() + "." + lastName.toLowerCase() + "@example.com",
+                    phone: "+1 (555) " + (100 + i).toString().padStart(3, '0') + "-" + (1000 + i * 10).toString().padStart(4, '0'),
+                    company: i % 3 === 0 ? "Tech Corp" : i % 3 === 1 ? "Innovation Labs" : "Creative Solutions",
+                    jobTitle: i % 4 === 0 ? "Software Engineer" : i % 4 === 1 ? "Designer" : i % 4 === 2 ? "Product Manager" : "Sales Director",
+                    avatarColor: avatarColors[i % avatarColors.length],
+                    isFavorite: isFavorite,
+                    tags: [tags[i % tags.length], tags[(i + 1) % tags.length]]
+                })
+            }
+        }
+    }
+    
+    // Filtered model for search and filters
+    property string searchText: ""
+    property bool showFavoritesOnly: false
+    property var selectedTags: []
+    property string sortOrder: "asc" // "asc" or "desc"
+    
+    function matchesFilters(firstName, lastName, email, isFavorite, contactTags) {
+        // Search filter
+        if (searchText.length > 0) {
+            const search = searchText.toLowerCase()
+            const fullName = (firstName + " " + lastName).toLowerCase()
+            const emailLower = email.toLowerCase()
+            
+            if (!fullName.includes(search) && !emailLower.includes(search)) {
+                return false
+            }
+        }
+        
+        // Favorites filter
+        if (showFavoritesOnly && !isFavorite) {
+            return false
+        }
+        
+        // Tags filter
+        if (selectedTags.length > 0) {
+            let hasMatchingTag = false
+            for (let tag of selectedTags) {
+                if (contactTags && contactTags.indexOf(tag) >= 0) {
+                    hasMatchingTag = true
+                    break
+                }
+            }
+            if (!hasMatchingTag) {
+                return false
+            }
+        }
+        
+        return true
+    }
+
     header: ToolBar {
+        height: 80
+        
         background: Rectangle {
             color: "#FFFFFF"
+            
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                color: "#E5E7EB"
+            }
         }
 
         RowLayout {
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.leftMargin: 24
+            anchors.rightMargin: 24
             spacing: 16
 
             Text {
                 text: "Contacts"
-                font.pixelSize: 24
+                font.pixelSize: 28
                 font.weight: Font.Bold
                 color: "#111827"
             }
@@ -39,173 +131,190 @@ Page {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: `${contactManager.proxyModel.count} contacts`
+                text: {
+                    let count = 0
+                    for (let i = 0; i < contactsModel.count; i++) {
+                        let contact = contactsModel.get(i)
+                        if (matchesFilters(contact.firstName, contact.lastName, contact.email, 
+                                         contact.isFavorite, contact.tags)) {
+                            count++
+                        }
+                    }
+                    return count + " contacts"
+                }
                 font.pixelSize: 14
                 color: "#6B7280"
             }
 
-            CustomButton {
+            Button {
                 text: "+ Add"
-                variant: "primary"
+                
+                background: Rectangle {
+                    color: parent.pressed ? "#2563EB" : parent.hovered ? "#3B82F6" : "#3B82F6"
+                    radius: 10
+                    
+                    Behavior on color {
+                        ColorAnimation { duration: 150 }
+                    }
+                }
+                
+                contentItem: Text {
+                    text: parent.text
+                    font.pixelSize: 14
+                    font.weight: Font.Medium
+                    color: "#FFFFFF"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    leftPadding: 20
+                    rightPadding: 20
+                    topPadding: 10
+                    bottomPadding: 10
+                }
+                
                 onClicked: root.addContactRequested()
             }
         }
     }
 
-    ColumnLayout {
+    RowLayout {
         anchors.fill: parent
         anchors.margins: 24
         spacing: 24
 
-        // Search bar
-        SearchBar {
-            id: searchBar
-            Layout.fillWidth: true
-            onSearchTextChanged: (text) => {
-                contactManager.proxyModel.searchText = text
+        // Left sidebar - Filters
+        FilterPanel {
+            id: filterPanel
+            Layout.preferredWidth: 280
+            Layout.fillHeight: true
+            
+            onFavoritesToggled: (enabled) => {
+                root.showFavoritesOnly = enabled
+            }
+            
+            onSortChanged: (sortBy, ascending) => {
+                root.sortOrder = ascending ? "asc" : "desc"
+            }
+            
+            onTagToggled: (tag) => {
+                root.selectedTags = filterPanel.selectedTags
             }
         }
 
-        // Main content area
-        RowLayout {
+        // Right side - Search and Contact List
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 24
+            spacing: 16
 
-            // Sidebar with filters
-            /*
-            FilterPanel {
-                id: filterPanel
-                Layout.preferredWidth: 300
-                Layout.fillHeight: true
-
-                onFavoritesToggled: (enabled) => {
-                    contactManager.proxyModel.filterFavorites = enabled
-                }
-
-                onTagSelected: (tag) => {
-                    contactManager.proxyModel.filterTags = filterPanel.selectedTags
-                }
-
-                onTagDeselected: (tag) => {
-                    contactManager.proxyModel.filterTags = filterPanel.selectedTags
-                }
-
-                onSortChanged: (sortBy, ascending) => {
-                    switch (sortBy) {
-                    case "name":
-                        contactManager.proxyModel.sortByName(ascending)
-                        break
-                    case "dateAdded":
-                        contactManager.proxyModel.sortByDateAdded(ascending)
-                        break
-                    case "dateModified":
-                        contactManager.proxyModel.sortByDateModified(ascending)
-                        break
-                    case "frequency":
-                        contactManager.proxyModel.sortByFrequency(ascending)
-                        break
-                    }
-                }
-
-                onFiltersCleared: {
-                    searchBar.text = ""
-                    contactManager.proxyModel.clearFilters()
+            // Search bar
+            SearchBar {
+                id: searchBar
+                Layout.fillWidth: true
+                onSearchTextChanged: (text) => {
+                    root.searchText = text
                 }
             }
-            */
 
             // Contact list
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: "#FFFFFF"
-                radius: 8
+                radius: 12
 
                 ListView {
                     id: contactListView
                     anchors.fill: parent
                     anchors.margins: 8
                     clip: true
-                    spacing: 2
+                    spacing: 0
 
-                    model: contactManager.proxyModel
+                    model: contactsModel
 
                     delegate: ContactDelegate {
                         width: contactListView.width
-
-                        onClicked: {
-                            root.contactSelected(index)
-                        }
-
-                        onEditClicked: {
-                            editDialog.contactIndex = index
-                            editDialog.open()
-                        }
-
-                        onDeleteClicked: {
-                            deleteDialog.contactIndex = index
-                            deleteDialog.open()
-                        }
-
+                        
+                        firstName: model.firstName
+                        lastName: model.lastName
+                        email: model.email
+                        isFavorite: model.isFavorite
+                        avatarColor: model.avatarColor
+                        tags: model.tags
+                        
+                        visible: root.matchesFilters(model.firstName, model.lastName, model.email, model.isFavorite, model.tags)
+                        height: visible ? 80 : 0
+                        
+                        onClicked: root.contactSelected(index)
+                        
                         onFavoriteToggled: {
-                            contactManager.toggleFavorite(index)
+                            contactsModel.setProperty(index, "isFavorite", !model.isFavorite)
                         }
                     }
 
                     ScrollBar.vertical: ScrollBar {
                         policy: ScrollBar.AsNeeded
+                        
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+                        
+                        contentItem: Rectangle {
+                            implicitWidth: 6
+                            radius: 3
+                            color: parent.pressed ? "#9CA3AF" : "#D1D5DB"
+                            
+                            Behavior on color {
+                                ColorAnimation { duration: 150 }
+                            }
+                        }
                     }
 
                     // Empty state
-                    EmptyState {
+                    Item {
                         anchors.centerIn: parent
-                        visible: contactListView.count === 0
-                        title: searchBar.text ? "No matches found" : "No Contacts"
-                        message: searchBar.text ? "Try a different search term" : "Add your first contact to get started"
-                        buttonText: "Add Contact"
-                        showButton: !searchBar.text
-                        onButtonClicked: root.addContactRequested()
+                        visible: {
+                            let hasVisible = false
+                            for (let i = 0; i < contactsModel.count; i++) {
+                                let contact = contactsModel.get(i)
+                                if (root.matchesFilters(contact.firstName, contact.lastName, contact.email,
+                                                       contact.isFavorite, contact.tags)) {
+                                    hasVisible = true
+                                    break
+                                }
+                            }
+                            return !hasVisible
+                        }
+                        width: 300
+                        height: 200
+                        
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 16
+                            
+                            Text {
+                                text: "🔍"
+                                font.pixelSize: 64
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                            
+                            Text {
+                                text: root.searchText ? "No matches found" : "No contacts"
+                                font.pixelSize: 20
+                                font.weight: Font.DemiBold
+                                color: "#111827"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                            
+                            Text {
+                                text: root.searchText ? "Try a different search term" : "Add your first contact to get started"
+                                font.pixelSize: 14
+                                color: "#6B7280"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-
-    // Dialogs
-    ContactFormDialog {
-        id: addDialog
-        contactIndex: -1
-    }
-
-    ContactFormDialog {
-        id: editDialog
-    }
-
-    Dialog {
-        id: deleteDialog
-        property int contactIndex: -1
-
-        title: "Delete Contact"
-        modal: true
-        standardButtons: Dialog.Yes | Dialog.No
-        anchors.centerIn: Overlay.overlay
-
-        Label {
-            text: "Are you sure you want to delete this contact?"
-        }
-
-        onAccepted: {
-            if (contactIndex >= 0) {
-                contactManager.removeContact(contactIndex)
-            }
-        }
-    }
-
-    Connections {
-        target: root
-        function onAddContactRequested() {
-            addDialog.open()
         }
     }
 }
