@@ -88,9 +88,23 @@ Page {
         if (selectedTags.length > 0) {
             let hasMatchingTag = false
             for (let tag of selectedTags) {
-                if (contactTags && contactTags.indexOf(tag) >= 0) {
-                    hasMatchingTag = true
-                    break
+                if (contactTags) {
+                    // Handle both JavaScript arrays and QML ListModel
+                    if (Array.isArray(contactTags)) {
+                        if (contactTags.indexOf(tag) >= 0) {
+                            hasMatchingTag = true
+                            break
+                        }
+                    } else {
+                        // contactTags is a ListModel - iterate through it
+                        for (let i = 0; i < contactTags.count; i++) {
+                            if (contactTags.get(i).modelData === tag) {
+                                hasMatchingTag = true
+                                break
+                            }
+                        }
+                        if (hasMatchingTag) break
+                    }
                 }
             }
             if (!hasMatchingTag) {
