@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Window
 import QtQuick.Layouts
 import ContactManagerApp
+import "components"
 
 /**
  * Main Application Window
@@ -45,8 +46,16 @@ ApplicationWindow {
         }
 
         onAddContactRequested: {
-            // Future: Open add contact dialog
-            console.log("Add contact requested")
+            addContactDialog.open()
+        }
+    }
+
+    // Add Contact Dialog
+    AddContactDialog {
+        id: addContactDialog
+
+        onContactAdded: (firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags) => {
+            contactManager.addContactFull(firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags)
         }
     }
 
