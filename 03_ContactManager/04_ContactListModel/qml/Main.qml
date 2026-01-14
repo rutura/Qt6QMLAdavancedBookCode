@@ -2,13 +2,14 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
 import QtQuick.Layouts
+import ContactManagerApp
 
 /**
  * Main Application Window
  *
  * Portfolio-ready Contact Manager application demonstrating:
  * - Modern QML UI with animations
- * - Pure QML implementation with dummy data
+ * - C++ ContactListModel backend
  * - Responsive design and smooth interactions
  */
 ApplicationWindow {
@@ -25,10 +26,19 @@ ApplicationWindow {
     // Modern window styling
     color: "#F9FAFB"
 
+    // Create ContactManager instance at the application level
+    ContactManager {
+        id: contactManager
+    }
+
     // Contact list page as the main content
     ContactListPage {
+        id: contactListPage
         anchors.fill: parent
-        
+
+        // Pass the contact manager to the page
+        contactManager: contactManager
+
         onContactSelected: (index) => {
             // Future: Navigate to detail page
             console.log("Contact selected:", index)
@@ -46,7 +56,7 @@ ApplicationWindow {
 
         background: Rectangle {
             color: "#FFFFFF"
-            
+
             Rectangle {
                 anchors.top: parent.top
                 width: parent.width
@@ -62,13 +72,13 @@ ApplicationWindow {
             spacing: 24
 
             Text {
-                text: "Total: 45"
+                text: "Total: " + contactManager.totalContacts
                 font.pixelSize: 12
                 color: "#6B7280"
             }
 
             Text {
-                text: "Favorites: 6"
+                text: "Favorites: " + contactManager.favoritesCount
                 font.pixelSize: 12
                 color: "#6B7280"
             }

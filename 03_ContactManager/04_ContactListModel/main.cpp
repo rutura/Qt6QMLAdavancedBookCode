@@ -2,6 +2,9 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 
+// Include ContactManager to ensure QML_ELEMENT registration works
+#include "managers/ContactManager.h"
+
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);

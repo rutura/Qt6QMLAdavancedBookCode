@@ -2,14 +2,19 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../components"
+import ContactManagerApp
 
 /**
  * ContactListPage - Main page showing the list of contacts
  *
  * Includes search, filtering, and the contact list with all interactions.
+ * Uses the C++ ContactListModel for data through ContactManager.
  */
 Page {
     id: root
+
+    // ContactManager is passed in from Main.qml
+    required property ContactManager contactManager
 
     signal contactSelected(int index)
     signal addContactRequested()
@@ -18,72 +23,40 @@ Page {
         color: "#F9FAFB"
     }
 
-    // Dummy contacts data
-    ListModel {
-        id: contactsModel
-        
-        Component.onCompleted: {
-            // Generate diverse dummy contacts
-            const firstNames = ["Emily", "Evelyn", "Evelyn", "Ethan", "Penelope", "Avery", "Hannah", "Isabella", "Jacob", "Liam",
-                              "Mia", "Noah", "Olivia", "Lucas", "Ava", "Mason", "Sophia", "Elijah", "Charlotte", "James",
-                              "Amelia", "Benjamin", "Harper", "William", "Ella", "Michael", "Abigail", "Alexander", "Emily", "Daniel",
-                              "Madison", "Henry", "Scarlett", "Matthew", "Grace", "David", "Chloe", "Joseph", "Victoria", "Samuel",
-                              "Lily", "Jackson", "Aria", "Sebastian", "Zoe", "Jack"]
-            
-            const lastNames = ["Adams", "Clark", "Nguyen", "Parker", "Johnson", "Nguyen", "Moore", "Garcia", "Rodriguez", "Wilson",
-                             "Martinez", "Anderson", "Taylor", "Thomas", "Hernandez", "Moore", "Martin", "Jackson", "Thompson", "White",
-                             "Lopez", "Lee", "Gonzalez", "Harris", "Young", "King", "Wright", "Scott", "Green", "Baker",
-                             "Adams", "Nelson", "Carter", "Mitchell", "Perez", "Roberts", "Turner", "Phillips", "Campbell", "Parker",
-                             "Evans", "Edwards", "Collins", "Stewart", "Morris", "Rogers"]
-            
-            const avatarColors = ["#16A34A", "#0EA5E9", "#8B5CF6", "#0D9488", "#EC4899", "#6366F1", "#F59E0B", "#EF4444", 
-                                 "#06B6D4", "#8B5CF6", "#10B981", "#F59E0B", "#6366F1", "#EC4899", "#14B8A6"]
-            
-            const tags = ["client", "alumni", "lead", "friends", "vendor", "prospect", "partner", "work", "family", "colleague"]
-            
-            for (let i = 0; i < 45; i++) {
-                const firstName = firstNames[i % firstNames.length]
-                const lastName = lastNames[i % lastNames.length]
-                const isFavorite = i < 6
-                
-                append({
-                    firstName: firstName,
-                    lastName: lastName,
-                    email: firstName.toLowerCase() + "." + lastName.toLowerCase() + "@example.com",
-                    phone: "+1 (555) " + (100 + i).toString().padStart(3, '0') + "-" + (1000 + i * 10).toString().padStart(4, '0'),
-                    company: i % 3 === 0 ? "Tech Corp" : i % 3 === 1 ? "Innovation Labs" : "Creative Solutions",
-                    jobTitle: i % 4 === 0 ? "Software Engineer" : i % 4 === 1 ? "Designer" : i % 4 === 2 ? "Product Manager" : "Sales Director",
-                    avatarColor: avatarColors[i % avatarColors.length],
-                    isFavorite: isFavorite,
-                    tags: [tags[i % tags.length], tags[(i + 1) % tags.length]]
-                })
-            }
-        }
+    // Avatar color palette (maps avatarColorIndex to actual colors)
+    readonly property var avatarColors: [
+        "#16A34A", "#0EA5E9", "#8B5CF6", "#0D9488",
+        "#EC4899", "#6366F1", "#F59E0B", "#EF4444"
+    ]
+
+    // Helper function to get avatar color from index
+    function getAvatarColor(colorIndex) {
+        return avatarColors[colorIndex % avatarColors.length]
     }
-    
+
     // Filtered model for search and filters
     property string searchText: ""
     property bool showFavoritesOnly: false
     property var selectedTags: []
     property string sortOrder: "asc" // "asc" or "desc"
-    
+
     function matchesFilters(firstName, lastName, email, isFavorite, contactTags) {
         // Search filter
         if (searchText.length > 0) {
             const search = searchText.toLowerCase()
             const fullName = (firstName + " " + lastName).toLowerCase()
             const emailLower = email.toLowerCase()
-            
+
             if (!fullName.includes(search) && !emailLower.includes(search)) {
                 return false
             }
         }
-        
+
         // Favorites filter
         if (showFavoritesOnly && !isFavorite) {
             return false
         }
-        
+
         // Tags filter
         if (selectedTags.length > 0) {
             let hasMatchingTag = false
@@ -111,16 +84,16 @@ Page {
                 return false
             }
         }
-        
+
         return true
     }
 
     header: ToolBar {
         height: 80
-        
+
         background: Rectangle {
             color: "#FFFFFF"
-            
+
             Rectangle {
                 anchors.bottom: parent.bottom
                 width: parent.width
@@ -147,9 +120,9 @@ Page {
             Text {
                 text: {
                     let count = 0
-                    for (let i = 0; i < contactsModel.count; i++) {
-                        let contact = contactsModel.get(i)
-                        if (matchesFilters(contact.firstName, contact.lastName, contact.email, 
+                    for (let i = 0; i < root.contactManager.contactModel.count; i++) {
+                        let contact = root.contactManager.contactModel.getContact(i)
+                        if (root.matchesFilters(contact.firstName, contact.lastName, contact.email,
                                          contact.isFavorite, contact.tags)) {
                             count++
                         }
@@ -162,16 +135,16 @@ Page {
 
             Button {
                 text: "+ Add"
-                
+
                 background: Rectangle {
                     color: parent.pressed ? "#2563EB" : parent.hovered ? "#3B82F6" : "#3B82F6"
                     radius: 10
-                    
+
                     Behavior on color {
                         ColorAnimation { duration: 150 }
                     }
                 }
-                
+
                 contentItem: Text {
                     text: parent.text
                     font.pixelSize: 14
@@ -184,7 +157,7 @@ Page {
                     topPadding: 10
                     bottomPadding: 10
                 }
-                
+
                 onClicked: root.addContactRequested()
             }
         }
@@ -200,15 +173,15 @@ Page {
             id: filterPanel
             Layout.preferredWidth: 280
             Layout.fillHeight: true
-            
+
             onFavoritesToggled: (enabled) => {
                 root.showFavoritesOnly = enabled
             }
-            
+
             onSortChanged: (sortBy, ascending) => {
                 root.sortOrder = ascending ? "asc" : "desc"
             }
-            
+
             onTagToggled: (tag) => {
                 root.selectedTags = filterPanel.selectedTags
             }
@@ -243,40 +216,40 @@ Page {
                     clip: true
                     spacing: 0
 
-                    model: contactsModel
+                    model: root.contactManager.contactModel
 
                     delegate: ContactDelegate {
                         width: contactListView.width
-                        
+
                         firstName: model.firstName
                         lastName: model.lastName
                         email: model.email
                         isFavorite: model.isFavorite
-                        avatarColor: model.avatarColor
+                        avatarColor: root.getAvatarColor(model.avatarColorIndex)
                         tags: model.tags
-                        
+
                         visible: root.matchesFilters(model.firstName, model.lastName, model.email, model.isFavorite, model.tags)
                         height: visible ? 80 : 0
-                        
+
                         onClicked: root.contactSelected(index)
-                        
+
                         onFavoriteToggled: {
-                            contactsModel.setProperty(index, "isFavorite", !model.isFavorite)
+                            root.contactManager.toggleFavorite(index)
                         }
                     }
 
                     ScrollBar.vertical: ScrollBar {
                         policy: ScrollBar.AsNeeded
-                        
+
                         background: Rectangle {
                             color: "transparent"
                         }
-                        
+
                         contentItem: Rectangle {
                             implicitWidth: 6
                             radius: 3
                             color: parent.pressed ? "#9CA3AF" : "#D1D5DB"
-                            
+
                             Behavior on color {
                                 ColorAnimation { duration: 150 }
                             }
@@ -288,8 +261,8 @@ Page {
                         anchors.centerIn: parent
                         visible: {
                             let hasVisible = false
-                            for (let i = 0; i < contactsModel.count; i++) {
-                                let contact = contactsModel.get(i)
+                            for (let i = 0; i < root.contactManager.contactModel.count; i++) {
+                                let contact = root.contactManager.contactModel.getContact(i)
                                 if (root.matchesFilters(contact.firstName, contact.lastName, contact.email,
                                                        contact.isFavorite, contact.tags)) {
                                     hasVisible = true
@@ -300,17 +273,17 @@ Page {
                         }
                         width: 300
                         height: 200
-                        
+
                         ColumnLayout {
                             anchors.centerIn: parent
                             spacing: 16
-                            
+
                             Text {
-                                text: "🔍"
+                                text: "No contacts found"
                                 font.pixelSize: 64
                                 Layout.alignment: Qt.AlignHCenter
                             }
-                            
+
                             Text {
                                 text: root.searchText ? "No matches found" : "No contacts"
                                 font.pixelSize: 20
@@ -318,7 +291,7 @@ Page {
                                 color: "#111827"
                                 Layout.alignment: Qt.AlignHCenter
                             }
-                            
+
                             Text {
                                 text: root.searchText ? "Try a different search term" : "Add your first contact to get started"
                                 font.pixelSize: 14
