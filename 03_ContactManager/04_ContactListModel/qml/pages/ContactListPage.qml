@@ -7,8 +7,8 @@ import ContactManagerApp
 /**
  * ContactListPage - Main page showing the list of contacts
  *
- * Includes search, filtering, and the contact list with all interactions.
- * Uses the C++ ContactListModel for data through ContactManager.
+ * Displays the contact list from C++ ContactListModel.
+ * Filtering and sorting will be added later via QSortFilterProxyModel.
  */
 Page {
     id: root
@@ -32,60 +32,6 @@ Page {
     // Helper function to get avatar color from index
     function getAvatarColor(colorIndex) {
         return avatarColors[colorIndex % avatarColors.length]
-    }
-
-    // Filtered model for search and filters
-    property string searchText: ""
-    property bool showFavoritesOnly: false
-    property var selectedTags: []
-    property string sortOrder: "asc" // "asc" or "desc"
-
-    function matchesFilters(firstName, lastName, email, isFavorite, contactTags) {
-        // Search filter
-        if (searchText.length > 0) {
-            const search = searchText.toLowerCase()
-            const fullName = (firstName + " " + lastName).toLowerCase()
-            const emailLower = email.toLowerCase()
-
-            if (!fullName.includes(search) && !emailLower.includes(search)) {
-                return false
-            }
-        }
-
-        // Favorites filter
-        if (showFavoritesOnly && !isFavorite) {
-            return false
-        }
-
-        // Tags filter
-        if (selectedTags.length > 0) {
-            let hasMatchingTag = false
-            for (let tag of selectedTags) {
-                if (contactTags) {
-                    // Handle both JavaScript arrays and QML ListModel
-                    if (Array.isArray(contactTags)) {
-                        if (contactTags.indexOf(tag) >= 0) {
-                            hasMatchingTag = true
-                            break
-                        }
-                    } else {
-                        // contactTags is a ListModel - iterate through it
-                        for (let i = 0; i < contactTags.count; i++) {
-                            if (contactTags.get(i).modelData === tag) {
-                                hasMatchingTag = true
-                                break
-                            }
-                        }
-                        if (hasMatchingTag) break
-                    }
-                }
-            }
-            if (!hasMatchingTag) {
-                return false
-            }
-        }
-
-        return true
     }
 
     header: ToolBar {
@@ -118,17 +64,7 @@ Page {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: {
-                    let count = 0
-                    for (let i = 0; i < root.contactManager.contactModel.count; i++) {
-                        let contact = root.contactManager.contactModel.getContact(i)
-                        if (root.matchesFilters(contact.firstName, contact.lastName, contact.email,
-                                         contact.isFavorite, contact.tags)) {
-                            count++
-                        }
-                    }
-                    return count + " contacts"
-                }
+                text: root.contactManager.contactModel.count + " contacts"
                 font.pixelSize: 14
                 color: "#6B7280"
             }
@@ -168,23 +104,11 @@ Page {
         anchors.margins: 24
         spacing: 24
 
-        // Left sidebar - Filters
+        // Left sidebar - Filters (functionality will be added with QSortFilterProxyModel)
         FilterPanel {
             id: filterPanel
             Layout.preferredWidth: 280
             Layout.fillHeight: true
-
-            onFavoritesToggled: (enabled) => {
-                root.showFavoritesOnly = enabled
-            }
-
-            onSortChanged: (sortBy, ascending) => {
-                root.sortOrder = ascending ? "asc" : "desc"
-            }
-
-            onTagToggled: (tag) => {
-                root.selectedTags = filterPanel.selectedTags
-            }
         }
 
         // Right side - Search and Contact List
@@ -193,13 +117,10 @@ Page {
             Layout.fillHeight: true
             spacing: 16
 
-            // Search bar
+            // Search bar (functionality will be added with QSortFilterProxyModel)
             SearchBar {
                 id: searchBar
                 Layout.fillWidth: true
-                onSearchTextChanged: (text) => {
-                    root.searchText = text
-                }
             }
 
             // Contact list
@@ -220,6 +141,7 @@ Page {
 
                     delegate: ContactDelegate {
                         width: contactListView.width
+                        height: 80
 
                         firstName: model.firstName
                         lastName: model.lastName
@@ -227,9 +149,6 @@ Page {
                         isFavorite: model.isFavorite
                         avatarColor: root.getAvatarColor(model.avatarColorIndex)
                         tags: model.tags
-
-                        visible: root.matchesFilters(model.firstName, model.lastName, model.email, model.isFavorite, model.tags)
-                        height: visible ? 80 : 0
 
                         onClicked: root.contactSelected(index)
 
@@ -259,18 +178,7 @@ Page {
                     // Empty state
                     Item {
                         anchors.centerIn: parent
-                        visible: {
-                            let hasVisible = false
-                            for (let i = 0; i < root.contactManager.contactModel.count; i++) {
-                                let contact = root.contactManager.contactModel.getContact(i)
-                                if (root.matchesFilters(contact.firstName, contact.lastName, contact.email,
-                                                       contact.isFavorite, contact.tags)) {
-                                    hasVisible = true
-                                    break
-                                }
-                            }
-                            return !hasVisible
-                        }
+                        visible: root.contactManager.contactModel.count === 0
                         width: 300
                         height: 200
 
@@ -285,7 +193,7 @@ Page {
                             }
 
                             Text {
-                                text: root.searchText ? "No matches found" : "No contacts"
+                                text: "No contacts"
                                 font.pixelSize: 20
                                 font.weight: Font.DemiBold
                                 color: "#111827"
@@ -293,7 +201,7 @@ Page {
                             }
 
                             Text {
-                                text: root.searchText ? "Try a different search term" : "Add your first contact to get started"
+                                text: "Add your first contact to get started"
                                 font.pixelSize: 14
                                 color: "#6B7280"
                                 Layout.alignment: Qt.AlignHCenter
