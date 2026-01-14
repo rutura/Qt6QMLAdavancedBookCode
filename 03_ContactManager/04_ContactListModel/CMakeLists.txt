@@ -28,7 +28,6 @@ set(QML_FILES
     qml/components/FilterPanel.qml
     qml/components/SearchBar.qml
     qml/pages/ContactListPage.qml
-    qml/pages/ContactDetailPage.qml
 )
 
 
