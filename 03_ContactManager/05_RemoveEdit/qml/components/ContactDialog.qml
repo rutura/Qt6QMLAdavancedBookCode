@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 /**
- * AddContactDialog - Multi-mode dialog for contact management
+ * ContactDialog - Multi-mode dialog for contact management
  *
  * Supports three modes: add, edit, view
  * - add: Create a new contact

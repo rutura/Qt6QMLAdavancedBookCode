@@ -260,7 +260,7 @@ Page {
     }
 
     // Multi-mode contact dialog (Add/Edit/View)
-    AddContactDialog {
+    ContactDialog {
         id: contactDialog
 
         onContactAdded: function(firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags) {

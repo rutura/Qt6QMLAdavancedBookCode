@@ -23,7 +23,7 @@ set(PROJECT_SOURCES
 # QML files
 set(QML_FILES
     qml/Main.qml
-    qml/components/AddContactDialog.qml
+    qml/components/ContactDialog.qml
     qml/components/ContactDelegate.qml
     qml/components/DeleteConfirmationDialog.qml
     qml/components/FilterPanel.qml
