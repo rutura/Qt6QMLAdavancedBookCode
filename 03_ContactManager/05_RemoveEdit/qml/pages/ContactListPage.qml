@@ -268,19 +268,7 @@ Page {
         }
 
         onContactUpdated: function(index, firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags) {
-            // Update the contact via the model
-            let model = root.contactManager.contactModel
-
-            model.setData(model.index(index, 0), firstName, 256)      // FirstNameRole
-            model.setData(model.index(index, 0), lastName, 257)       // LastNameRole
-            model.setData(model.index(index, 0), email, 259)          // EmailRole
-            model.setData(model.index(index, 0), phone, 260)          // PhoneRole
-            model.setData(model.index(index, 0), company, 261)        // CompanyRole
-            model.setData(model.index(index, 0), jobTitle, 262)       // JobTitleRole
-            model.setData(model.index(index, 0), address, 263)        // AddressRole
-            model.setData(model.index(index, 0), notes, 264)          // NotesRole
-            model.setData(model.index(index, 0), isFavorite, 267)     // IsFavoriteRole
-            model.setData(model.index(index, 0), tags, 266)           // TagsRole
+            root.contactManager.updateContactFull(index, firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags)
         }
     }
 

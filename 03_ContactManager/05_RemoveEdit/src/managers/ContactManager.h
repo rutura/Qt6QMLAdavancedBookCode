@@ -42,6 +42,11 @@ public:
                                     const QString &company, const QString &jobTitle,
                                     const QString &address, const QString &notes,
                                     bool isFavorite, const QStringList &tags);
+    Q_INVOKABLE void updateContactFull(int index, const QString &firstName, const QString &lastName,
+                                       const QString &email, const QString &phone,
+                                       const QString &company, const QString &jobTitle,
+                                       const QString &address, const QString &notes,
+                                       bool isFavorite, const QStringList &tags);
     Q_INVOKABLE void removeContact(int index);
     Q_INVOKABLE void toggleFavorite(int index);
     Q_INVOKABLE void clearAllContacts();

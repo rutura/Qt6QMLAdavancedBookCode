@@ -76,6 +76,30 @@ void ContactManager::addContactFull(const QString &firstName, const QString &las
 }
 
 /**
+ * Updates an existing contact at the specified index with all available fields.
+ */
+void ContactManager::updateContactFull(int index, const QString &firstName, const QString &lastName,
+                                       const QString &email, const QString &phone,
+                                       const QString &company, const QString &jobTitle,
+                                       const QString &address, const QString &notes,
+                                       bool isFavorite, const QStringList &tags)
+{
+    Contact contact(firstName, lastName);
+
+    // Set all fields (including empty ones to allow clearing)
+    contact.setEmail(email);
+    contact.setPhone(phone);
+    contact.setCompany(company);
+    contact.setJobTitle(jobTitle);
+    contact.setAddress(address);
+    contact.setNotes(notes);
+    contact.setIsFavorite(isFavorite);
+    contact.setTags(tags);
+
+    m_contactModel->updateContact(index, contact);
+}
+
+/**
  * Removes a contact at the specified index.
  */
 void ContactManager::removeContact(int index)
