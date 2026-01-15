@@ -25,6 +25,7 @@ set(QML_FILES
     qml/Main.qml
     qml/components/AddContactDialog.qml
     qml/components/ContactDelegate.qml
+    qml/components/DeleteConfirmationDialog.qml
     qml/components/FilterPanel.qml
     qml/components/SearchBar.qml
     qml/pages/ContactListPage.qml

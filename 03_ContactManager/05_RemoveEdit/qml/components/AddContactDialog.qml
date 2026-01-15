@@ -3,9 +3,13 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 /**
- * AddContactDialog - Modern dialog for adding a new contact
+ * AddContactDialog - Multi-mode dialog for contact management
  *
- * Provides form fields for entering all contact details.
+ * Supports three modes: add, edit, view
+ * - add: Create a new contact
+ * - edit: Modify an existing contact
+ * - view: Display contact details (read-only)
+ *
  * Light theme matching the rest of the application.
  */
 Dialog {
@@ -17,13 +21,77 @@ Dialog {
     height: Math.min(720, parent.height - 80)
     padding: 0
 
+    // Mode: "add", "edit", or "view"
+    property string mode: "add"
+
+    // Contact data (for edit and view modes)
+    property string contactId: ""
+    property int contactIndex: -1
+
     // Available tags (same as FilterPanel)
     readonly property var availableTags: ["client", "alumni", "lead", "friends", "vendor", "prospect", "partner", "work", "family", "colleague"]
     property var selectedTags: []
 
+    // Computed properties for UI
+    readonly property bool isAddMode: mode === "add"
+    readonly property bool isEditMode: mode === "edit"
+    readonly property bool isViewMode: mode === "view"
+    readonly property bool isReadOnly: mode === "view"
+
     signal contactAdded(string firstName, string lastName, string email, string phone,
                         string company, string jobTitle, string address, string notes,
                         bool isFavorite, var tags)
+    signal contactUpdated(int index, string firstName, string lastName, string email, string phone,
+                         string company, string jobTitle, string address, string notes,
+                         bool isFavorite, var tags)
+
+    // Helper function to open dialog in different modes
+    function openAdd() {
+        mode = "add"
+        contactId = ""
+        contactIndex = -1
+        open()
+    }
+
+    function openEdit(index, contact) {
+        mode = "edit"
+        contactIndex = index
+        contactId = contact.contactId || ""
+
+        // Prefill fields
+        firstNameField.text = contact.firstName || ""
+        lastNameField.text = contact.lastName || ""
+        emailField.text = contact.email || ""
+        phoneField.text = contact.phone || ""
+        companyField.text = contact.company || ""
+        jobTitleField.text = contact.jobTitle || ""
+        addressField.text = contact.address || ""
+        notesField.text = contact.notes || ""
+        favoriteSwitch.checked = contact.isFavorite || false
+        selectedTags = contact.tags || []
+
+        open()
+    }
+
+    function openView(index, contact) {
+        mode = "view"
+        contactIndex = index
+        contactId = contact.contactId || ""
+
+        // Prefill fields
+        firstNameField.text = contact.firstName || ""
+        lastNameField.text = contact.lastName || ""
+        emailField.text = contact.email || ""
+        phoneField.text = contact.phone || ""
+        companyField.text = contact.company || ""
+        jobTitleField.text = contact.jobTitle || ""
+        addressField.text = contact.address || ""
+        notesField.text = contact.notes || ""
+        favoriteSwitch.checked = contact.isFavorite || false
+        selectedTags = contact.tags || []
+
+        open()
+    }
 
     // Solid white background
     background: Rectangle {
@@ -33,36 +101,56 @@ Dialog {
         border.width: 1
     }
 
-    // Reset form when dialog opens
+    // Reset form when dialog opens (only in add mode)
     onOpened: {
-        firstNameField.text = ""
-        lastNameField.text = ""
-        emailField.text = ""
-        phoneField.text = ""
-        companyField.text = ""
-        jobTitleField.text = ""
-        addressField.text = ""
-        notesField.text = ""
-        favoriteSwitch.checked = false
-        selectedTags = []
+        if (isAddMode) {
+            firstNameField.text = ""
+            lastNameField.text = ""
+            emailField.text = ""
+            phoneField.text = ""
+            companyField.text = ""
+            jobTitleField.text = ""
+            addressField.text = ""
+            notesField.text = ""
+            favoriteSwitch.checked = false
+            selectedTags = []
+        }
         contentFlickable.contentY = 0
-        firstNameField.forceActiveFocus()
+        if (!isViewMode) {
+            firstNameField.forceActiveFocus()
+        }
     }
 
     onAccepted: {
         if (firstNameField.text.trim() !== "" || lastNameField.text.trim() !== "") {
-            root.contactAdded(
-                firstNameField.text.trim(),
-                lastNameField.text.trim(),
-                emailField.text.trim(),
-                phoneField.text.trim(),
-                companyField.text.trim(),
-                jobTitleField.text.trim(),
-                addressField.text.trim(),
-                notesField.text.trim(),
-                favoriteSwitch.checked,
-                selectedTags
-            )
+            if (isAddMode) {
+                root.contactAdded(
+                    firstNameField.text.trim(),
+                    lastNameField.text.trim(),
+                    emailField.text.trim(),
+                    phoneField.text.trim(),
+                    companyField.text.trim(),
+                    jobTitleField.text.trim(),
+                    addressField.text.trim(),
+                    notesField.text.trim(),
+                    favoriteSwitch.checked,
+                    selectedTags
+                )
+            } else if (isEditMode) {
+                root.contactUpdated(
+                    contactIndex,
+                    firstNameField.text.trim(),
+                    lastNameField.text.trim(),
+                    emailField.text.trim(),
+                    phoneField.text.trim(),
+                    companyField.text.trim(),
+                    jobTitleField.text.trim(),
+                    addressField.text.trim(),
+                    notesField.text.trim(),
+                    favoriteSwitch.checked,
+                    selectedTags
+                )
+            }
         }
     }
 
@@ -92,14 +180,22 @@ Dialog {
                     spacing: 4
 
                     Text {
-                        text: "Add New Contact"
+                        text: {
+                            if (root.isAddMode) return "Add New Contact"
+                            if (root.isEditMode) return "Edit Contact"
+                            return "Contact Details"
+                        }
                         font.pixelSize: 20
                         font.weight: Font.Bold
                         color: "#111827"
                     }
 
                     Text {
-                        text: "Fill in the details below to create a new contact"
+                        text: {
+                            if (root.isAddMode) return "Fill in the details below to create a new contact"
+                            if (root.isEditMode) return "Update the contact information below"
+                            return "View contact information"
+                        }
                         font.pixelSize: 13
                         color: "#6B7280"
                     }
@@ -225,11 +321,12 @@ Dialog {
                             placeholderTextColor: "#9CA3AF"
                             leftPadding: 14
                             rightPadding: 14
+                            readOnly: root.isReadOnly
 
                             background: Rectangle {
-                                color: firstNameField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                                border.color: firstNameField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                                border.width: firstNameField.activeFocus ? 2 : 1
+                                color: root.isReadOnly ? "#F9FAFB" : (firstNameField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                                border.color: root.isReadOnly ? "#E5E7EB" : (firstNameField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                                border.width: firstNameField.activeFocus && !root.isReadOnly ? 2 : 1
                                 radius: 10
 
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -259,11 +356,12 @@ Dialog {
                             placeholderTextColor: "#9CA3AF"
                             leftPadding: 14
                             rightPadding: 14
+                            readOnly: root.isReadOnly
 
                             background: Rectangle {
-                                color: lastNameField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                                border.color: lastNameField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                                border.width: lastNameField.activeFocus ? 2 : 1
+                                color: root.isReadOnly ? "#F9FAFB" : (lastNameField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                                border.color: root.isReadOnly ? "#E5E7EB" : (lastNameField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                                border.width: lastNameField.activeFocus && !root.isReadOnly ? 2 : 1
                                 radius: 10
 
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -300,11 +398,12 @@ Dialog {
                             leftPadding: 14
                             rightPadding: 14
                             inputMethodHints: Qt.ImhEmailCharactersOnly
+                            readOnly: root.isReadOnly
 
                             background: Rectangle {
-                                color: emailField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                                border.color: emailField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                                border.width: emailField.activeFocus ? 2 : 1
+                                color: root.isReadOnly ? "#F9FAFB" : (emailField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                                border.color: root.isReadOnly ? "#E5E7EB" : (emailField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                                border.width: emailField.activeFocus && !root.isReadOnly ? 2 : 1
                                 radius: 10
 
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -335,11 +434,12 @@ Dialog {
                             leftPadding: 14
                             rightPadding: 14
                             inputMethodHints: Qt.ImhDialableCharactersOnly
+                            readOnly: root.isReadOnly
 
                             background: Rectangle {
-                                color: phoneField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                                border.color: phoneField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                                border.width: phoneField.activeFocus ? 2 : 1
+                                color: root.isReadOnly ? "#F9FAFB" : (phoneField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                                border.color: root.isReadOnly ? "#E5E7EB" : (phoneField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                                border.width: phoneField.activeFocus && !root.isReadOnly ? 2 : 1
                                 radius: 10
 
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -411,11 +511,12 @@ Dialog {
                             placeholderTextColor: "#9CA3AF"
                             leftPadding: 14
                             rightPadding: 14
+                            readOnly: root.isReadOnly
 
                             background: Rectangle {
-                                color: companyField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                                border.color: companyField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                                border.width: companyField.activeFocus ? 2 : 1
+                                color: root.isReadOnly ? "#F9FAFB" : (companyField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                                border.color: root.isReadOnly ? "#E5E7EB" : (companyField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                                border.width: companyField.activeFocus && !root.isReadOnly ? 2 : 1
                                 radius: 10
 
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -445,11 +546,12 @@ Dialog {
                             placeholderTextColor: "#9CA3AF"
                             leftPadding: 14
                             rightPadding: 14
+                            readOnly: root.isReadOnly
 
                             background: Rectangle {
-                                color: jobTitleField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                                border.color: jobTitleField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                                border.width: jobTitleField.activeFocus ? 2 : 1
+                                color: root.isReadOnly ? "#F9FAFB" : (jobTitleField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                                border.color: root.isReadOnly ? "#E5E7EB" : (jobTitleField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                                border.width: jobTitleField.activeFocus && !root.isReadOnly ? 2 : 1
                                 radius: 10
 
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -506,11 +608,12 @@ Dialog {
                     placeholderTextColor: "#9CA3AF"
                     leftPadding: 14
                     rightPadding: 14
+                    readOnly: root.isReadOnly
 
                     background: Rectangle {
-                        color: addressField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                        border.color: addressField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                        border.width: addressField.activeFocus ? 2 : 1
+                        color: root.isReadOnly ? "#F9FAFB" : (addressField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                        border.color: root.isReadOnly ? "#E5E7EB" : (addressField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                        border.width: addressField.activeFocus && !root.isReadOnly ? 2 : 1
                         radius: 10
 
                         Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -568,11 +671,12 @@ Dialog {
                     rightPadding: 14
                     topPadding: 12
                     bottomPadding: 12
+                    readOnly: root.isReadOnly
 
                     background: Rectangle {
-                        color: notesField.activeFocus ? "#FFFFFF" : "#F9FAFB"
-                        border.color: notesField.activeFocus ? "#3B82F6" : "#E5E7EB"
-                        border.width: notesField.activeFocus ? 2 : 1
+                        color: root.isReadOnly ? "#F9FAFB" : (notesField.activeFocus ? "#FFFFFF" : "#F9FAFB")
+                        border.color: root.isReadOnly ? "#E5E7EB" : (notesField.activeFocus ? "#3B82F6" : "#E5E7EB")
+                        border.width: notesField.activeFocus && !root.isReadOnly ? 2 : 1
                         radius: 10
 
                         Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -634,12 +738,14 @@ Dialog {
 
                     Switch {
                         id: favoriteSwitch
+                        enabled: !root.isReadOnly
 
                         indicator: Rectangle {
                             implicitWidth: 48
                             implicitHeight: 26
                             radius: 13
                             color: favoriteSwitch.checked ? "#F59E0B" : "#E5E7EB"
+                            opacity: favoriteSwitch.enabled ? 1.0 : 0.5
 
                             Behavior on color { ColorAnimation { duration: 200 } }
 
@@ -734,7 +840,8 @@ Dialog {
 
                             MouseArea {
                                 anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
+                                enabled: !root.isReadOnly
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: {
                                     let tags = root.selectedTags.slice()
                                     let idx = tags.indexOf(modelData)
@@ -805,8 +912,9 @@ Dialog {
                 anchors.rightMargin: 28
                 spacing: 12
 
-                // Required fields hint
+                // Required fields hint (hide in view mode)
                 Text {
+                    visible: !root.isViewMode
                     text: "* First or Last name required"
                     font.pixelSize: 12
                     color: "#9CA3AF"
@@ -814,8 +922,9 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                // Cancel button
+                // Cancel/Close button
                 Rectangle {
+                    visible: !root.isViewMode
                     width: cancelText.width + 32
                     height: 44
                     radius: 10
@@ -843,30 +952,47 @@ Dialog {
                     }
                 }
 
-                // Add Contact button
+                // Primary action button (Add/Save/Close)
                 Rectangle {
-                    width: addText.width + 40
+                    width: actionText.width + 40
                     height: 44
                     radius: 10
-                    color: addMouseArea.pressed ? "#1D4ED8" : addMouseArea.containsMouse ? "#2563EB" : "#3B82F6"
+                    color: {
+                        if (root.isViewMode) {
+                            return actionMouseArea.pressed ? "#E5E7EB" : actionMouseArea.containsMouse ? "#F3F4F6" : "#FFFFFF"
+                        }
+                        return actionMouseArea.pressed ? "#1D4ED8" : actionMouseArea.containsMouse ? "#2563EB" : "#3B82F6"
+                    }
+                    border.color: root.isViewMode ? "#E5E7EB" : "transparent"
+                    border.width: root.isViewMode ? 1 : 0
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
-                        id: addText
+                        id: actionText
                         anchors.centerIn: parent
-                        text: "Add Contact"
+                        text: {
+                            if (root.isViewMode) return "Close"
+                            if (root.isEditMode) return "Save Changes"
+                            return "Add Contact"
+                        }
                         font.pixelSize: 14
                         font.weight: Font.DemiBold
-                        color: "#FFFFFF"
+                        color: root.isViewMode ? "#374151" : "#FFFFFF"
                     }
 
                     MouseArea {
-                        id: addMouseArea
+                        id: actionMouseArea
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.accept()
+                        onClicked: {
+                            if (root.isViewMode) {
+                                root.reject()
+                            } else {
+                                root.accept()
+                            }
+                        }
                     }
                 }
             }

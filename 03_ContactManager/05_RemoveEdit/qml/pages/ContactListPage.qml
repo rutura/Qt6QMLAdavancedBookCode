@@ -8,6 +8,7 @@ import ContactManagerApp
  * ContactListPage - Main page showing the list of contacts
  *
  * Displays the contact list from C++ ContactListModel.
+ * Supports swipe gestures for edit/delete and tap to view.
  * Filtering and sorting will be added later via QSortFilterProxyModel.
  */
 Page {
@@ -17,7 +18,10 @@ Page {
     required property ContactManager contactManager
 
     signal contactSelected(int index)
-    signal addContactRequested()
+
+    // Track which contact is being deleted
+    property int deleteContactIndex: -1
+    property string deleteContactName: ""
 
     background: Rectangle {
         color: "#F9FAFB"
@@ -94,7 +98,7 @@ Page {
                     bottomPadding: 10
                 }
 
-                onClicked: root.addContactRequested()
+                onClicked: contactDialog.openAdd()
             }
         }
     }
@@ -150,10 +154,52 @@ Page {
                         avatarColor: root.getAvatarColor(model.avatarColorIndex)
                         tags: model.tags
 
-                        onClicked: root.contactSelected(index)
+                        // Tap to view contact details
+                        onClicked: {
+                            // Get full contact data from model
+                            let contact = {
+                                firstName: model.firstName,
+                                lastName: model.lastName,
+                                email: model.email,
+                                phone: model.phone,
+                                company: model.company,
+                                jobTitle: model.jobTitle,
+                                address: model.address,
+                                notes: model.notes,
+                                isFavorite: model.isFavorite,
+                                tags: model.tags,
+                                contactId: model.contactId
+                            }
+                            contactDialog.openView(index, contact)
+                        }
 
                         onFavoriteToggled: {
                             root.contactManager.toggleFavorite(index)
+                        }
+
+                        // Swipe right to edit
+                        onEditRequested: {
+                            let contact = {
+                                firstName: model.firstName,
+                                lastName: model.lastName,
+                                email: model.email,
+                                phone: model.phone,
+                                company: model.company,
+                                jobTitle: model.jobTitle,
+                                address: model.address,
+                                notes: model.notes,
+                                isFavorite: model.isFavorite,
+                                tags: model.tags,
+                                contactId: model.contactId
+                            }
+                            contactDialog.openEdit(index, contact)
+                        }
+
+                        // Swipe left to delete
+                        onDeleteRequested: {
+                            root.deleteContactIndex = index
+                            root.deleteContactName = model.firstName + " " + model.lastName
+                            deleteDialog.open()
                         }
                     }
 
@@ -209,6 +255,46 @@ Page {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Multi-mode contact dialog (Add/Edit/View)
+    AddContactDialog {
+        id: contactDialog
+
+        onContactAdded: function(firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags) {
+            root.contactManager.addContactFull(firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags)
+        }
+
+        onContactUpdated: function(index, firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags) {
+            // Update the contact via the model
+            let model = root.contactManager.contactModel
+
+            model.setData(model.index(index, 0), firstName, 256)      // FirstNameRole
+            model.setData(model.index(index, 0), lastName, 257)       // LastNameRole
+            model.setData(model.index(index, 0), email, 259)          // EmailRole
+            model.setData(model.index(index, 0), phone, 260)          // PhoneRole
+            model.setData(model.index(index, 0), company, 261)        // CompanyRole
+            model.setData(model.index(index, 0), jobTitle, 262)       // JobTitleRole
+            model.setData(model.index(index, 0), address, 263)        // AddressRole
+            model.setData(model.index(index, 0), notes, 264)          // NotesRole
+            model.setData(model.index(index, 0), isFavorite, 267)     // IsFavoriteRole
+            model.setData(model.index(index, 0), tags, 266)           // TagsRole
+        }
+    }
+
+    // Delete confirmation dialog
+    DeleteConfirmationDialog {
+        id: deleteDialog
+
+        contactName: root.deleteContactName
+
+        onDeleteConfirmed: {
+            if (root.deleteContactIndex >= 0) {
+                root.contactManager.removeContact(root.deleteContactIndex)
+                root.deleteContactIndex = -1
+                root.deleteContactName = ""
             }
         }
     }

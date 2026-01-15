@@ -41,21 +41,8 @@ ApplicationWindow {
         contactManager: contactManager
 
         onContactSelected: (index) => {
-            // Future: Navigate to detail page
+            // Handled internally by ContactListPage
             console.log("Contact selected:", index)
-        }
-
-        onAddContactRequested: {
-            addContactDialog.open()
-        }
-    }
-
-    // Add Contact Dialog
-    AddContactDialog {
-        id: addContactDialog
-
-        onContactAdded: (firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags) => {
-            contactManager.addContactFull(firstName, lastName, email, phone, company, jobTitle, address, notes, isFavorite, tags)
         }
     }
 
