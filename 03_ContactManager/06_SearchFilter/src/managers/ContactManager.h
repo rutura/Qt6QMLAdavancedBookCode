@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include "../models/ContactListModel.h"
+#include "../models/ContactFilterProxyModel.h"
 
 /**
  * @brief The ContactManager class orchestrates contact management operations.
@@ -22,6 +23,7 @@ class ContactManager : public QObject
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(ContactListModel* contactModel READ contactModel CONSTANT)
+    Q_PROPERTY(ContactFilterProxyModel* proxyModel READ proxyModel CONSTANT)
     Q_PROPERTY(int totalContacts READ totalContacts NOTIFY totalContactsChanged)
     Q_PROPERTY(int favoritesCount READ favoritesCount NOTIFY favoritesCountChanged)
 
@@ -30,6 +32,7 @@ public:
 
     // Property getters
     ContactListModel* contactModel() const { return m_contactModel; }
+    ContactFilterProxyModel* proxyModel() const { return m_proxyModel; }
     int totalContacts() const;
     int favoritesCount() const;
 
@@ -65,6 +68,7 @@ private slots:
 
 private:
     ContactListModel *m_contactModel;
+    ContactFilterProxyModel *m_proxyModel;
 
     void setupConnections();
     void updateStatistics();

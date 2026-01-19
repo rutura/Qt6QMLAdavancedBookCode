@@ -5,7 +5,14 @@
 ContactManager::ContactManager(QObject *parent)
     : QObject(parent)
     , m_contactModel(new ContactListModel(this))
+    , m_proxyModel(new ContactFilterProxyModel(this))
 {
+    // Set up proxy model with source model
+    m_proxyModel->setSourceModel(m_contactModel);
+
+    // Initial sort by name ascending
+    m_proxyModel->sort(0, Qt::AscendingOrder);
+
     // Setup signal connections
     setupConnections();
 

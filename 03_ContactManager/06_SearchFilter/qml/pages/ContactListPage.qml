@@ -7,9 +7,9 @@ import ContactManagerApp
 /**
  * ContactListPage - Main page showing the list of contacts
  *
- * Displays the contact list from C++ ContactListModel.
+ * Displays the contact list from C++ ContactListModel via ContactFilterProxyModel.
  * Supports swipe gestures for edit/delete and tap to view.
- * Filtering and sorting will be added later via QSortFilterProxyModel.
+ * Features filtering by favorites, tags, search text, and sorting by name.
  */
 Page {
     id: root
@@ -68,7 +68,7 @@ Page {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: root.contactManager.contactModel.count + " contacts"
+                text: root.contactManager.proxyModel.count + " contacts"
                 font.pixelSize: 14
                 color: "#6B7280"
             }
@@ -108,11 +108,23 @@ Page {
         anchors.margins: 24
         spacing: 24
 
-        // Left sidebar - Filters (functionality will be added with QSortFilterProxyModel)
+        // Left sidebar - Filters
         FilterPanel {
             id: filterPanel
             Layout.preferredWidth: 280
             Layout.fillHeight: true
+
+            onFavoritesToggled: function(enabled) {
+                root.contactManager.proxyModel.favoritesOnly = enabled
+            }
+
+            onSortChanged: function(sortBy, ascending) {
+                root.contactManager.proxyModel.sortAscending = ascending
+            }
+
+            onTagToggled: function(tag) {
+                root.contactManager.proxyModel.selectedTags = filterPanel.selectedTags
+            }
         }
 
         // Right side - Search and Contact List
@@ -121,10 +133,14 @@ Page {
             Layout.fillHeight: true
             spacing: 16
 
-            // Search bar (functionality will be added with QSortFilterProxyModel)
+            // Search bar
             SearchBar {
                 id: searchBar
                 Layout.fillWidth: true
+
+                onSearchTextChanged: function(text) {
+                    root.contactManager.proxyModel.searchText = text
+                }
             }
 
             // Contact list
@@ -141,7 +157,7 @@ Page {
                     clip: true
                     spacing: 0
 
-                    model: root.contactManager.contactModel
+                    model: root.contactManager.proxyModel
 
                     delegate: ContactDelegate {
                         width: contactListView.width
@@ -156,6 +172,8 @@ Page {
 
                         // Tap to view contact details
                         onClicked: {
+                            // Map proxy index to source index for operations
+                            let sourceIndex = root.contactManager.proxyModel.mapToSourceIndex(index)
                             // Get full contact data from model
                             let contact = {
                                 firstName: model.firstName,
@@ -170,15 +188,17 @@ Page {
                                 tags: model.tags,
                                 contactId: model.contactId
                             }
-                            contactDialog.openView(index, contact)
+                            contactDialog.openView(sourceIndex, contact)
                         }
 
                         onFavoriteToggled: {
-                            root.contactManager.toggleFavorite(index)
+                            let sourceIndex = root.contactManager.proxyModel.mapToSourceIndex(index)
+                            root.contactManager.toggleFavorite(sourceIndex)
                         }
 
                         // Swipe right to edit
                         onEditRequested: {
+                            let sourceIndex = root.contactManager.proxyModel.mapToSourceIndex(index)
                             let contact = {
                                 firstName: model.firstName,
                                 lastName: model.lastName,
@@ -192,12 +212,13 @@ Page {
                                 tags: model.tags,
                                 contactId: model.contactId
                             }
-                            contactDialog.openEdit(index, contact)
+                            contactDialog.openEdit(sourceIndex, contact)
                         }
 
                         // Swipe left to delete
                         onDeleteRequested: {
-                            root.deleteContactIndex = index
+                            let sourceIndex = root.contactManager.proxyModel.mapToSourceIndex(index)
+                            root.deleteContactIndex = sourceIndex
                             root.deleteContactName = model.firstName + " " + model.lastName
                             deleteDialog.open()
                         }
@@ -221,7 +242,7 @@ Page {
                         }
                     }
 
-                    // Empty state
+                    // Empty state - no contacts at all
                     Item {
                         anchors.centerIn: parent
                         visible: root.contactManager.contactModel.count === 0
@@ -248,6 +269,42 @@ Page {
 
                             Text {
                                 text: "Add your first contact to get started"
+                                font.pixelSize: 14
+                                color: "#6B7280"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                        }
+                    }
+
+                    // Empty state - filters yielded no results
+                    Item {
+                        anchors.centerIn: parent
+                        visible: root.contactManager.contactModel.count > 0 && root.contactManager.proxyModel.count === 0
+                        width: 300
+                        height: 200
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 16
+
+                            Text {
+                                text: "🔍"
+                                font.pixelSize: 64
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: "No matching contacts"
+                                font.pixelSize: 20
+                                font.weight: Font.DemiBold
+                                color: "#111827"
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: filterPanel.selectedTags.length > 0
+                                      ? "No contacts found with the selected tags"
+                                      : "Try adjusting your search or filters"
                                 font.pixelSize: 14
                                 color: "#6B7280"
                                 Layout.alignment: Qt.AlignHCenter

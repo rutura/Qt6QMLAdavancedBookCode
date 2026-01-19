@@ -13,9 +13,11 @@ set(PROJECT_SOURCES
     main.cpp
     src/models/Contact.h
     src/models/Contact.cpp
-    src/models/ContactListModel.h 
+    src/models/ContactListModel.h
     src/models/ContactListModel.cpp
-    src/managers/ContactManager.h 
+    src/models/ContactFilterProxyModel.h
+    src/models/ContactFilterProxyModel.cpp
+    src/managers/ContactManager.h
     src/managers/ContactManager.cpp
 )
 
@@ -43,6 +45,8 @@ qt_add_qml_module(ContactManager
     SOURCES
         src/managers/ContactManager.h
         src/managers/ContactManager.cpp
+        src/models/ContactFilterProxyModel.h
+        src/models/ContactFilterProxyModel.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
