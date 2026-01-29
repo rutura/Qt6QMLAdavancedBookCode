@@ -1,6 +1,5 @@
 #include "ContactManager.h"
 #include <QDebug>
-#include <QRandomGenerator>
 
 ContactManager::ContactManager(QObject *parent)
     : QObject(parent)
@@ -10,7 +9,7 @@ ContactManager::ContactManager(QObject *parent)
     setupConnections();
 
     // Generate sample contacts for demonstration
-    generateSampleContacts(45);
+    generateSampleContacts();
 }
 
 /**
@@ -102,101 +101,52 @@ void ContactManager::clearAllContacts()
 /**
  * Generates sample contacts for testing/demonstration.
  */
-void ContactManager::generateSampleContacts(int count)
+void ContactManager::generateSampleContacts()
 {
-    // Sample data arrays
-    QStringList firstNames = {
-        "Emma", "Liam", "Olivia", "Noah", "Ava", "Ethan", "Sophia", "Mason",
-        "Isabella", "William", "Mia", "James", "Charlotte", "Benjamin", "Amelia",
-        "Lucas", "Harper", "Henry", "Evelyn", "Alexander", "Abigail", "Michael",
-        "Emily", "Daniel", "Elizabeth", "Matthew", "Sofia", "Jackson", "Avery",
-        "Sebastian", "Ella", "David", "Scarlett", "Joseph", "Grace", "Carter",
-        "Chloe", "Owen", "Victoria", "Wyatt", "Riley", "John", "Aria", "Jack",
-        "Lily", "Luke", "Aubrey", "Jayden", "Zoey", "Dylan", "Penelope", "Grayson",
-        "Layla", "Levi", "Nora", "Isaac", "Hannah", "Gabriel", "Lillian", "Julian"
-    };
+    Contact c1("Emma", "Johnson");
+    c1.setEmail("emma.johnson@example.com");
+    c1.setPhone("+1-555-123-4567");
+    c1.setCompany("Tech Innovations Inc");
+    c1.setJobTitle("Software Engineer");
+    c1.setTags({"work", "colleague"});
+    c1.setIsFavorite(true);
+    m_contactModel->addContact(c1);
 
-    QStringList lastNames = {
-        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
-        "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez",
-        "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
-        "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark",
-        "Ramirez", "Lewis", "Robinson", "Walker", "Young", "Allen", "King",
-        "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores", "Green",
-        "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell",
-        "Carter", "Roberts", "Gomez", "Phillips", "Evans", "Turner", "Diaz",
-        "Parker", "Cruz", "Edwards", "Collins", "Reyes"
-    };
+    Contact c2("Liam", "Williams");
+    c2.setEmail("liam.williams@example.com");
+    c2.setPhone("+1-555-234-5678");
+    c2.setCompany("Global Solutions Ltd");
+    c2.setJobTitle("Product Manager");
+    c2.setTags({"work", "client"});
+    c2.setIsFavorite(true);
+    m_contactModel->addContact(c2);
 
-    QStringList companies = {
-        "Tech Innovations Inc", "Global Solutions Ltd", "Creative Designs Co",
-        "Data Systems Corp", "Smart Technologies", "Digital Ventures",
-        "Cloud Services Inc", "Future Analytics", "Quantum Computing Ltd",
-        "AI Research Group", "Cyber Security Solutions", "Web Development Pro",
-        "Mobile Apps Studio", "Software Consulting", "IT Services Group",
-        "Network Solutions", "Database Systems", "Enterprise Software",
-        "Startup Accelerator", "Innovation Labs", "Product Design Studio",
-        "Marketing Agency", "Finance Corporation", "Healthcare Systems",
-        "Education Technology", "E-commerce Platform", "Social Media Inc",
-        "Gaming Studios", "Robotics Engineering", "Green Energy Solutions"
-    };
+    Contact c3("Olivia", "Brown");
+    c3.setEmail("olivia.brown@example.com");
+    c3.setPhone("+1-555-345-6789");
+    c3.setCompany("Creative Designs Co");
+    c3.setJobTitle("UX Designer");
+    c3.setTags({"friends"});
+    c3.setIsFavorite(false);
+    m_contactModel->addContact(c3);
 
-    QStringList jobTitles = {
-        "Software Engineer", "Product Manager", "UX Designer", "Data Scientist",
-        "DevOps Engineer", "Marketing Manager", "Sales Director", "CEO",
-        "CTO", "Project Manager", "Business Analyst", "QA Engineer",
-        "System Administrator", "Network Engineer", "Security Analyst",
-        "Frontend Developer", "Backend Developer", "Full Stack Developer",
-        "Mobile Developer", "UI Designer", "Graphic Designer", "Content Writer",
-        "Account Manager", "HR Manager", "Financial Analyst", "Consultant",
-        "Team Lead", "Senior Engineer", "Junior Developer", "Intern"
-    };
+    Contact c4("Noah", "Davis");
+    c4.setEmail("noah.davis@example.com");
+    c4.setPhone("+1-555-456-7890");
+    c4.setCompany("Data Systems Corp");
+    c4.setJobTitle("Data Scientist");
+    c4.setTags({"work", "lead"});
+    c4.setIsFavorite(false);
+    m_contactModel->addContact(c4);
 
-    QStringList tags = {
-        "work", "family", "friends", "client", "colleague", "vendor",
-        "partner", "lead", "prospect", "alumni"
-    };
-
-    // Generate contacts
-    for (int i = 0; i < count; ++i) {
-        QString firstName = firstNames[QRandomGenerator::global()->bounded(firstNames.size())];
-        QString lastName = lastNames[QRandomGenerator::global()->bounded(lastNames.size())];
-        QString email = QString("%1.%2@example.com")
-                            .arg(firstName.toLower())
-                            .arg(lastName.toLower());
-        QString phone = QString("+1-%1-%2-%3")
-                            .arg(100 + QRandomGenerator::global()->bounded(900))
-                            .arg(100 + QRandomGenerator::global()->bounded(900))
-                            .arg(1000 + QRandomGenerator::global()->bounded(9000));
-
-        Contact contact(firstName, lastName);
-        contact.setEmail(email);
-        contact.setPhone(phone);
-
-        // Add company and job title for some contacts
-        if (QRandomGenerator::global()->bounded(100) < 80) { // 80% have company
-            contact.setCompany(companies[QRandomGenerator::global()->bounded(companies.size())]);
-            contact.setJobTitle(jobTitles[QRandomGenerator::global()->bounded(jobTitles.size())]);
-        }
-
-        // Add tags (1-3 tags per contact)
-        QStringList contactTags;
-        int tagCount = 1 + QRandomGenerator::global()->bounded(3);
-        for (int j = 0; j < tagCount; ++j) {
-            QString tag = tags[QRandomGenerator::global()->bounded(tags.size())];
-            if (!contactTags.contains(tag)) {
-                contactTags.append(tag);
-            }
-        }
-        contact.setTags(contactTags);
-
-        // Mark some as favorites (first 6 contacts are favorites for demo)
-        contact.setIsFavorite(i < 6);
-
-        m_contactModel->addContact(contact);
-    }
-
-    qDebug() << "Generated" << count << "sample contacts";
+    Contact c5("Sophia", "Martinez");
+    c5.setEmail("sophia.martinez@example.com");
+    c5.setPhone("+1-555-567-8901");
+    c5.setCompany("Smart Technologies");
+    c5.setJobTitle("CTO");
+    c5.setTags({"family", "friends"});
+    c5.setIsFavorite(true);
+    m_contactModel->addContact(c5);
 }
 
 /**

@@ -47,7 +47,7 @@ public:
     Q_INVOKABLE void clearAllContacts();
 
     // Bulk operations
-    Q_INVOKABLE void generateSampleContacts(int count = 50);
+    Q_INVOKABLE void generateSampleContacts();
 
 signals:
     void totalContactsChanged();
