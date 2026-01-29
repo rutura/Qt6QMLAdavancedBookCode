@@ -180,7 +180,9 @@ void ContactListModel::toggleFavorite(int row)
 
     QModelIndex idx = index(row);
     bool currentFavorite = m_contacts[row].isFavorite();
-    setData(idx, !currentFavorite, IsFavoriteRole);
+    if (setData(idx, !currentFavorite, IsFavoriteRole)) {
+        emit contactUpdated(row);
+    }
 }
 
 /**
