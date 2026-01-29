@@ -6,15 +6,6 @@ ContactListModel::ContactListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
 
-    //Populate with sample data for demonstration purposes
-    Contact contact1("John", "Doe");
-    contact1.setEmail("john.doe@example.com");
-    
-    Contact contact2("Jane", "Smith");
-    contact2.setEmail("jane.smith@example.com");
-
-    m_contacts.append(contact1);
-    m_contacts.append(contact2);
 }
 
 /**

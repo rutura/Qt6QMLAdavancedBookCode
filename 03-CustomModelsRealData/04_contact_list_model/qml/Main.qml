@@ -17,9 +17,17 @@ ApplicationWindow {
     // Modern window styling
     color: "#F9FAFB"
 
+    // Create ContactManager instance at the application level
+    ContactManager {
+        id: contactManager
+    }
+
     // Contact list page as the main content
     ContactListPage {
         anchors.fill: parent
+
+        // Pass the contact manager to the page
+        contactManager: contactManager
 
         onContactSelected: (index) => {
             // Future: Navigate to detail page
@@ -54,13 +62,15 @@ ApplicationWindow {
             spacing: 24
 
             Text {
-                text: "Total: 45"
+                //text: "Total: 45"
+                text: "Total: " + contactManager.totalContacts
                 font.pixelSize: 12
                 color: "#6B7280"
             }
 
             Text {
-                text: "Favorites: 6"
+                //text: "Favorites: 6"
+                text: "Favorites: " + contactManager.favoritesCount
                 font.pixelSize: 12
                 color: "#6B7280"
             }

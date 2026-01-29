@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
     ContactListModel contactModel;
 
     QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty("contactsModel", &contactModel);
+    //engine.rootContext()->setContextProperty("contactsModel", &contactModel);
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,

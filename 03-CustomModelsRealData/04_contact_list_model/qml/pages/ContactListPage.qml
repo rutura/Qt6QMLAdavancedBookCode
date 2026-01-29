@@ -5,6 +5,9 @@ import QtQuick.Layouts
 Page {
     id: root
 
+    // ContactManager is passed in from Main.qml
+    required property ContactManager contactManager
+
     signal contactSelected(int index)
     signal addContactRequested()
 
@@ -48,7 +51,9 @@ Page {
              Item { Layout.fillWidth: true }
 
              Text {
-                 text: contactsModel.count + " contacts"
+                 //text: contactsModel.count + " contacts"
+                 text: root.contactManager.contactModel.count + " contacts"
+
                  font.pixelSize: 14
                  color: "#6B7280"
              }
@@ -139,7 +144,9 @@ Page {
                      spacing: 0
                      visible: root.selectedTags.length === 0
 
-                     model: contactsModel
+                     //model: contactsModel
+                     model: root.contactManager.contactModel
+
 
                      delegate: ContactDelegate {
                          width: contactListView.width
@@ -155,7 +162,9 @@ Page {
                          onClicked: root.contactSelected(index)
 
                          onFavoriteToggled: {
-                            contactsModel.toggleFavorite(index)
+                            //contactsModel.toggleFavorite(index)
+                            root.contactManager.toggleFavorite(index)
+
                          }
                      }
 
@@ -181,7 +190,9 @@ Page {
                  // Empty state
                  Item {
                      anchors.centerIn: parent
-                     visible: root.selectedTags.length > 0 || contactsModel.count === 0
+                     //visible: root.selectedTags.length > 0 || contactsModel.count === 0
+                     visible: root.selectedTags.length > 0 || root.contactManager.contactModel.count === 0
+
                      width: 300
                      height: 200
 
