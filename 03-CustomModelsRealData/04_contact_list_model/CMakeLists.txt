@@ -16,8 +16,6 @@ set(PROJECT_SOURCES
     src/models/contact.cpp
     src/models/contactlistmodel.h
     src/models/contactlistmodel.cpp
-    src/managers/contactmanager.h
-    src/managers/contactmanager.cpp
 )
 
 
