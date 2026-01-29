@@ -12,131 +12,6 @@ Page {
         color: "#F9FAFB"
     }
 
-    // Dummy contacts data
-    ListModel {
-         id: contactsModel
-
-         Component.onCompleted: {
-             const contacts = [
-                 {
-                     firstName: "Emily",
-                     lastName: "Adams",
-                     email: "emily.adams@example.com",
-                     phone: "+1 (555) 100-1000",
-                     company: "Tech Corp",
-                     jobTitle: "Software Engineer",
-                     avatarColor: "#16A34A",
-                     isFavorite: true,
-                     tags: ["client", "alumni"]
-                 },
-                 {
-                     firstName: "Evelyn",
-                     lastName: "Clark",
-                     email: "evelyn.clark@example.com",
-                     phone: "+1 (555) 101-1010",
-                     company: "Innovation Labs",
-                     jobTitle: "Designer",
-                     avatarColor: "#0EA5E9",
-                     isFavorite: true,
-                     tags: ["alumni", "lead"]
-                 },
-                 {
-                     firstName: "Evelyn",
-                     lastName: "Nguyen",
-                     email: "evelyn.nguyen@example.com",
-                     phone: "+1 (555) 102-1020",
-                     company: "Creative Solutions",
-                     jobTitle: "Product Manager",
-                     avatarColor: "#8B5CF6",
-                     isFavorite: true,
-                     tags: ["lead", "friends"]
-                 },
-                 {
-                     firstName: "Ethan",
-                     lastName: "Parker",
-                     email: "ethan.parker@example.com",
-                     phone: "+1 (555) 103-1030",
-                     company: "Tech Corp",
-                     jobTitle: "Sales Director",
-                     avatarColor: "#0D9488",
-                     isFavorite: true,
-                     tags: ["friends", "vendor"]
-                 },
-                 {
-                     firstName: "Penelope",
-                     lastName: "Johnson",
-                     email: "penelope.johnson@example.com",
-                     phone: "+1 (555) 104-1040",
-                     company: "Innovation Labs",
-                     jobTitle: "Software Engineer",
-                     avatarColor: "#EC4899",
-                     isFavorite: true,
-                     tags: ["vendor", "prospect"]
-                 },
-                 {
-                     firstName: "Avery",
-                     lastName: "Nguyen",
-                     email: "avery.nguyen@example.com",
-                     phone: "+1 (555) 105-1050",
-                     company: "Creative Solutions",
-                     jobTitle: "Designer",
-                     avatarColor: "#6366F1",
-                     isFavorite: true,
-                     tags: ["prospect", "partner"]
-                 },
-                 {
-                     firstName: "Hannah",
-                     lastName: "Moore",
-                     email: "hannah.moore@example.com",
-                     phone: "+1 (555) 106-1060",
-                     company: "Tech Corp",
-                     jobTitle: "Product Manager",
-                     avatarColor: "#F59E0B",
-                     isFavorite: false,
-                     tags: ["partner", "work"]
-                 },
-                 {
-                     firstName: "Isabella",
-                     lastName: "Garcia",
-                     email: "isabella.garcia@example.com",
-                     phone: "+1 (555) 107-1070",
-                     company: "Innovation Labs",
-                     jobTitle: "Sales Director",
-                     avatarColor: "#EF4444",
-                     isFavorite: false,
-                     tags: ["work", "family"]
-                 },
-                 {
-                     firstName: "Jacob",
-                     lastName: "Rodriguez",
-                     email: "jacob.rodriguez@example.com",
-                     phone: "+1 (555) 108-1080",
-                     company: "Creative Solutions",
-                     jobTitle: "Software Engineer",
-                     avatarColor: "#06B6D4",
-                     isFavorite: false,
-                     tags: ["family", "colleague"]
-                 },
-                 {
-                     firstName: "Liam",
-                     lastName: "Wilson",
-                     email: "liam.wilson@example.com",
-                     phone: "+1 (555) 109-1090",
-                     company: "Tech Corp",
-                     jobTitle: "Designer",
-                     avatarColor: "#8B5CF6",
-                     isFavorite: false,
-                     tags: ["colleague", "client"]
-                 }
-             ]
-
-             for (let contact of contacts) {
-                 append(contact)
-             }
-         }
-     }
-
-
     // Properties for UI state (filtering/sorting will be implemented later)
      property string searchText: ""
      property bool showFavoritesOnly: false
@@ -280,7 +155,7 @@ Page {
                          onClicked: root.contactSelected(index)
 
                          onFavoriteToggled: {
-                             contactsModel.setProperty(index, "isFavorite", !model.isFavorite)
+                            contactsModel.toggleFavorite(index)
                          }
                      }
 

@@ -16,6 +16,8 @@ set(PROJECT_SOURCES
     src/models/contact.cpp
     src/models/contactlistmodel.h
     src/models/contactlistmodel.cpp
+    src/managers/contactmanager.h
+    src/managers/contactmanager.cpp
 )
 
 
@@ -37,6 +39,9 @@ qt_add_qml_module(ContactManager
     URI ContactManagerApp
     VERSION 1.0
     QML_FILES ${QML_FILES}
+    SOURCES
+        src/managers/contactmanager.h
+        src/managers/contactmanager.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -51,7 +56,10 @@ set_target_properties(ContactManager PROPERTIES
 )
 
 target_include_directories(ContactManager
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/managers
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/models
 )
 
 target_link_libraries(ContactManager
