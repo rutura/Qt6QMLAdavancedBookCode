@@ -1,4 +1,4 @@
-#include "ContactManager.h"
+#include "contactManager.h"
 #include <QDebug>
 
 ContactManager::ContactManager(QObject *parent)
