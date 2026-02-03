@@ -45,12 +45,8 @@ ItemDelegate {
 
             Text {
                 anchors.centerIn: parent
-                text: {
-                    let initials = ""
-                    if (root.firstName) initials += root.firstName.charAt(0).toUpperCase()
-                    if (root.lastName) initials += root.lastName.charAt(0).toUpperCase()
-                    return initials
-                }
+                text: (root.firstName ? root.firstName[0].toUpperCase() : "") + 
+                      (root.lastName ? root.lastName[0].toUpperCase() : "")
                 font.pixelSize: 18
                 font.weight: Font.DemiBold
                 color: "#FFFFFF"
