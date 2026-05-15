@@ -5,6 +5,10 @@
 #include <QColor>
 #include <QtQml/qqmlregistration.h>
 
+// ThemeColors is not created directly from QML — it is only accessed
+// through the Theme singleton's `colors` property.  QML_ANONYMOUS
+// registers the type's meta-object with the engine so property bindings
+// and signals work, while preventing direct instantiation in QML.
 class ThemeColors : public QObject
 {
     Q_OBJECT

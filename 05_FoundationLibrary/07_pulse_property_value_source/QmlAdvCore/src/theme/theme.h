@@ -7,6 +7,11 @@
 #include "theme/themecolors.h"
 #include "theme/themespacing.h"
 
+// Theme is the section's key type.  It exposes ThemeColors and ThemeSpacing
+// as *object properties* — child QObjects accessible via Theme.colors.primary
+// and Theme.spacing.md.  The pointers are CONSTANT (same object throughout
+// the app lifetime) but ThemeColors' individual color properties are NOTIFY,
+// so bindings update when setMode() changes the palette.
 class Theme : public QObject
 {
     Q_OBJECT

@@ -4,6 +4,10 @@
 #include <QObject>
 #include <QtQml/qqmlregistration.h>
 
+// ThemeSpacing exposes a fixed spacing scale as CONSTANT properties.
+// CONSTANT means no change signal — spacing never changes at runtime.
+// Contrast this with ThemeColors which uses NOTIFY because it changes
+// when the user toggles light/dark mode.
 class ThemeSpacing : public QObject
 {
     Q_OBJECT

@@ -8,8 +8,15 @@
 #include "forms/formfieldvalidation.h"
 #include "forms/formfieldstyle.h"
 
-// FormField now carries two grouped sub-objects: `validation` and `style`.
-// Because they are exposed as CONSTANT Q_PROPERTYs, QML can write:
+// FormField represents a single input in a form.  It is creatable from QML
+// so the reader can write:
+//     FormGroup {
+//         FormField { label: "Email"; fieldType: FormField.Email }
+//     }
+//
+// Starting in section 05, FormField also carries two grouped sub-objects:
+// `validation` and `style`.  Because they are exposed as CONSTANT
+// Q_PROPERTYs, QML can write:
 //
 //     FormField {
 //         label: "Email"
