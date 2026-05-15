@@ -65,6 +65,7 @@ Match those folders' conventions exactly:
       components/
       pages/
   ```
+  `src/workers/` and `src/managers/` are introduced starting in section 05. Sections 01–04 use only `src/services/` and `src/models/`.
 - **Project name** inside `CMakeLists.txt` stays constant across all sections of this chapter: **`RepoExplorerPro`**. Only the folder name changes.
 - **QML module URI:** `RepoExplorerProApp` (constant across sections).
 - **CMake style:** mirror `03-CustomModelsRealData/04_contact_list_model/CMakeLists.txt`. Use `qt_standard_project_setup(REQUIRES 6.8)`, list sources explicitly, pass C++ sources to `qt_add_qml_module(... SOURCES ...)` when those types are exposed to QML.
@@ -85,7 +86,7 @@ Create **10 project folders** numbered `01` through `10`. Each is a complete bui
 
 **What to include:**
 
-- Copy `GitHubService`, `Repository`, `User` from `02_RestClientCustomTypes/07_GitHubService/src/` (or 08/09 — whichever is the latest complete version of those types).
+- Copy `GitHubService`, `Repository`, `User` from `02_RestClientCustomTypes/07_GitHubService/src/`. This is the definitive source — sections `08_LoadingStateFeedback` and `09_UiImprovements` of chapter 2 do not change the C++ types at all.
 - Minimal `Main.qml` with an `ApplicationWindow`, a tab bar with three tabs (Repositories / Issues / Users) — only the Repositories tab is wired this chapter; the other two are placeholders the reader will activate in later sections.
 - A single "Search" text field + button that triggers `gitHubService.searchRepositories(query)` and dumps results into a plain `Repeater` or basic `ListView` showing repo name + description. This is intentionally crude — it'll be replaced by a proper model in section 02.
 
@@ -128,10 +129,10 @@ Create **10 project folders** numbered `01` through `10`. Each is a complete bui
 
 **What to add over 03:**
 
-- New service method (or extension): `searchRepositoriesByCursor()` that parses the `Link: <...>; rel="next"` header from the response.
-- The model stores the **next URL** (or cursor token) instead of computing it from a page number.
-- Infinite scroll feel: as the user scrolls toward the end of the `ListView`, the model triggers the next fetch automatically. Use `ListView.onContentYChanged` with a threshold, or `ScrollBar`-driven, or a sentinel delegate at the end — pick the cleanest.
-- Keep offset pagination working in parallel (as a fallback / for the search endpoint which uses page numbers). The point is to show both patterns coexisting.
+- GitHub's `/search/repositories` endpoint returns a `Link` header on all multi-page responses — no separate endpoint or invented URL is needed. Add `fetchByUrl(const QUrl &url)` to `GitHubService` that issues a raw GET to the provided URL with no query-parameter arithmetic.
+- The model stores the `nextUrl` parsed from the `Link` header (e.g. `Link: <https://api.github.com/search/repositories?q=qt&page=3>; rel="next"`) instead of computing it from a page number.
+- Infinite scroll: place a sentinel `Item` as the last delegate in the `ListView` footer. When it becomes visible (`onVisibleChanged: if (visible) model.fetchNextPage()`), the model fetches the next URL. This is the cleanest pattern — no `contentY` polling needed.
+- The offset-based `search()` / `loadMore()` path from section 03 remains in the model untouched. This section adds cursor pagination alongside it so the reader can compare both patterns side by side in the same codebase.
 
 ---
 
@@ -177,7 +178,7 @@ This is the second threading lesson. After 05 + 06, the reader has seen both `QT
 - Handle `304 Not Modified` — serve cached body, do **not** count against the model's "new data arrived" path (no row inserts).
 - Parse `X-RateLimit-Remaining` and `X-RateLimit-Reset` from response headers; expose as a singleton or property on the service.
 - Show a small "rate limit: 47 / 60 remaining, resets at 14:32" indicator somewhere in the UI — taught as a real production concern.
-- Personal Access Token support: a settings field where the reader pastes a token, used as `Authorization: Bearer <token>` to bump the limit to 5000/hr. (Chapter 2 may have already covered the token; if so, just reuse — don't reteach.)
+- Personal Access Token support: add a `TextField` in QML (e.g. a collapsible settings row) where the reader pastes their token, wired to `gitHubService.authToken`. The `authToken` property and `Authorization: Bearer <token>` header injection are already fully implemented in the `GitHubService` C++ class from chapter 2 — do **not** re-implement the C++ side. Only the QML settings UI is new here.
 
 ---
 
@@ -207,7 +208,7 @@ This is the second threading lesson. After 05 + 06, the reader has seen both `QT
 - `UserListModel` (offset-paginated) consuming the Users search endpoint.
 - Three corresponding pages: `RepositoryListPage.qml`, `IssueListPage.qml`, `UserListPage.qml` — all use the same delegate/list/loadingstate idioms from the repo page.
 - Empty / loading / error / offline states wired consistently across all three. (Chapter 2 covered these visually; chapter 4 connects them properly through the model's status signals.)
-- A shared `LoadingState` enum or status `Q_PROPERTY` on a common model base. **Optional:** factor `AbstractGitHubListModel` as a tiny shared base — only if the duplication genuinely warrants it.
+- Factor `AbstractGitHubListModel` as a shared abstract base class holding the common `status` (`enum ModelStatus { Idle, Loading, Error }`), `errorMessage`, `totalCount`, `nextUrl`, and the owned `GitHubService` instance. With three concrete models the duplication warrants it; this is the right section to introduce the base. `IssueListModel` and `UserListModel` both inherit from it.
 
 ---
 
@@ -228,7 +229,7 @@ This is also the version that gets referenced by Book 2 chapters as "the chapter
 
 ## Constraints and don'ts
 
-- **Do not invent APIs.** Use real GitHub REST endpoints. If you need an endpoint that doesn't behave as described above, flag it in a `NOTES.md` at the chapter root rather than faking behavior.
+- **Do not invent APIs.** Use real GitHub REST endpoints. Create a `NOTES.md` at the chapter root documenting any API behavioral clarifications as you encounter them. Seed it with this confirmed fact: GitHub's `/search/repositories`, `/search/issues`, and `/search/users` endpoints all return `Link` headers on multi-page responses, making cursor pagination genuinely demonstrable on every endpoint used in this chapter.
 - **Do not add features beyond the section's scope.** If a feature naturally belongs to section 07, don't sneak it into section 05 even if it'd be easy. The whole point is the reader sees one concept added per section.
 - **Do not introduce frameworks the reader hasn't met.** No `KDE Frameworks`, no third-party JSON libs, no Boost. Stick to Qt + standard C++.
 - **Do not skip ahead on the QML side.** Keep delegates simple; section 09 is the one allowed to be visually polished. Earlier sections should look intentionally rough.
