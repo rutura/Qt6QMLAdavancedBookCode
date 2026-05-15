@@ -3,11 +3,20 @@ import QtQuick.Controls
 import QmlAdvCore
 
 Window {
-    width: 460
-    height: 480
+    width: 480
+    height: 560
     visible: true
     title: "QmlAdvCore — 06: Attached Properties"
     color: Theme.colors.background
+
+    // Form is both a singleton and an attached-property owner.
+    // Connections listens for the `submitted` signal fired from Form.submit().
+    Connections {
+        target: Form
+        function onSubmitted(values) {
+            resultText.text = "Submitted: " + JSON.stringify(values, null, 2)
+        }
+    }
 
     Column {
         anchors.fill: parent
@@ -22,12 +31,13 @@ Window {
         }
 
         Text {
+            width: parent.width
             text: "Any TextField can opt into Form tracking by setting\n" +
-                  "Form.field — no subclassing, no wrapper component."
+                  "Form.field — no subclassing, no wrapper component.\n" +
+                  "Form.values auto-aggregates each field's text."
             font.pixelSize: 13
             color: Theme.colors.text
             wrapMode: Text.WordWrap
-            width: parent.width
         }
 
         // Email field — opts into Form with attached properties
@@ -107,7 +117,7 @@ Window {
                 placeholderText: "https://..."
 
                 Form.field: "website"
-                // Form.required defaults to false — field is optional
+                // Form.required defaults to false
 
                 background: Rectangle {
                     radius: 4
@@ -119,16 +129,21 @@ Window {
             }
         }
 
-        Button {
-            text: "Read attached state"
-            onClicked: {
-                resultText.text =
-                    "email field key: '" + emailField.Form.field + "'\n" +
-                    "email required: " + emailField.Form.required + "\n" +
-                    "email pattern: " + emailField.Form.pattern + "\n\n" +
-                    "name key: '" + nameField.Form.field + "'\n" +
-                    "website key: '" + websiteField.Form.field + "'\n" +
-                    "website required: " + websiteField.Form.required
+        Row {
+            spacing: Theme.spacing.sm
+
+            Button {
+                text: "Submit (" + Form.fieldCount + " fields)"
+                onClicked: Form.submit()
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Live values: " + JSON.stringify(Form.values)
+                font.pixelSize: 11
+                color: Theme.colors.text
+                elide: Text.ElideRight
+                width: 240
             }
         }
 
@@ -137,6 +152,8 @@ Window {
             color: Theme.colors.text
             font.pixelSize: 12
             font.family: "monospace"
+            wrapMode: Text.WordWrap
+            width: parent.width
         }
     }
 }

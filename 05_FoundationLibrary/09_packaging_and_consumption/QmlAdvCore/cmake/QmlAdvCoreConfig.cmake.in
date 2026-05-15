@@ -1,10 +1,25 @@
 @PACKAGE_INIT@
 
+# Snapshot our own package paths BEFORE find_dependency(Qt6),
+# because Qt6Config.cmake also calls @PACKAGE_INIT@ and overwrites
+# PACKAGE_PREFIX_DIR. set_and_check() can't be used here for the same
+# reason — the @PACKAGE_xxx@ tokens are expanded once at install time
+# using OUR PACKAGE_PREFIX_DIR, but EXISTS checks must happen against
+# absolute paths, which we hold onto in local variables.
+set(_QmlAdvCore_lib_dir "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
+set(_QmlAdvCore_inc_dir "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/QmlAdvCore")
+
 include(CMakeFindDependencyMacro)
 find_dependency(Qt6 REQUIRED COMPONENTS Quick)
 
-set_and_check(_QmlAdvCore_lib_dir "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
-set_and_check(_QmlAdvCore_inc_dir "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/QmlAdvCore")
+if(NOT EXISTS "${_QmlAdvCore_lib_dir}")
+    message(FATAL_ERROR
+        "QmlAdvCore: library dir not found at ${_QmlAdvCore_lib_dir}")
+endif()
+if(NOT EXISTS "${_QmlAdvCore_inc_dir}")
+    message(FATAL_ERROR
+        "QmlAdvCore: include dir not found at ${_QmlAdvCore_inc_dir}")
+endif()
 
 # Backing library target
 if(NOT TARGET QmlAdvCore::QmlAdvCore)

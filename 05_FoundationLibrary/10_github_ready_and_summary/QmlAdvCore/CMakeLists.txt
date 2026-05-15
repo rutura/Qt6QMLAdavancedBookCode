@@ -112,14 +112,21 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QmlAdvCore
 )
 
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/QmlAdvCoreConfigVersion.cmake
-    VERSION       1.0.0
-    COMPATIBILITY SameMajorVersion
-)
+# --------------------------------------------------------------------------
+# Examples — one runnable mini-app per pattern.
+# Built by default when QmlAdvCore is the top-level project, or whenever
+# the parent project sets QMLADVCORE_BUILD_EXAMPLES=ON.
+# --------------------------------------------------------------------------
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(_qmladvcore_examples_default ON)
+else()
+    set(_qmladvcore_examples_default OFF)
+endif()
 
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/QmlAdvCoreConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/QmlAdvCoreConfigVersion.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QmlAdvCore
-)
+option(QMLADVCORE_BUILD_EXAMPLES
+    "Build the per-pattern example executables under examples/"
+    ${_qmladvcore_examples_default})
+
+if(QMLADVCORE_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()

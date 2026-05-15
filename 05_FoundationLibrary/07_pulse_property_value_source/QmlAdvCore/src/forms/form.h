@@ -2,16 +2,15 @@
 #define FORM_H
 
 #include <QObject>
+#include <QSet>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
-#include "forms/formattached.h"
+class FormAttached;
 
-// Form is the attached-type owner.  It is never instantiated directly —
-// its only purpose is to make `Form.field`, `Form.required`, `Form.pattern`
-// available on any QML item via the attached-property mechanism.
+// Form is the attached-type owner *and* an app-level singleton.
 //
-// Usage (in any QML item, typically a TextField):
+// As an attached-property owner, it lets any QML item opt into form tracking:
 //
 //     TextField {
 //         Form.field: "email"
@@ -19,23 +18,56 @@
 //         Form.pattern: "^[\\w.]+@[\\w]+\\.[a-z]{2,}$"
 //     }
 //
-// This is identical to how Qt's own Layout.fillWidth or Keys.onPressed work:
-//   1. The engine sees `Form.xxx` on an item.
-//   2. It calls Form::qmlAttachedProperties(item) to get/create the
-//      FormAttached instance for that item.
-//   3. It sets `xxx` on the FormAttached instance.
+// As a singleton, it aggregates every tracked field's current value into
+// `Form.values` and exposes a `Form.submit()` method/signal:
+//
+//     Button {
+//         text: "Submit"
+//         onClicked: Form.submit()
+//     }
+//
+//     Connections {
+//         target: Form
+//         function onSubmitted(values) { console.log(JSON.stringify(values)) }
+//     }
+//
+// The same name (`Form`) plays both roles because QML resolves attached
+// access (`item.Form.x`) and singleton access (`Form.x`) at different
+// lookup sites — exactly the way `Window` works in QtQuick.
 class Form : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
+    QML_SINGLETON
     QML_ATTACHED(FormAttached)
-    QML_UNCREATABLE("Form provides attached properties only — use Form.field, Form.required, etc.")
+
+    Q_PROPERTY(QVariantMap values     READ values     NOTIFY valuesChanged)
+    Q_PROPERTY(int         fieldCount READ fieldCount NOTIFY valuesChanged)
 
 public:
     explicit Form(QObject *parent = nullptr);
 
-    // Required by QML_ATTACHED — returns the attached object for `object`
+    QVariantMap values() const;
+    int         fieldCount() const;
+
+    Q_INVOKABLE void submit();
+
     static FormAttached *qmlAttachedProperties(QObject *object);
+
+    // FormAttached talks back through these to keep `values` consistent
+    void registerField  (FormAttached *attached);
+    void unregisterField(FormAttached *attached);
+    void notifyValuesChanged();
+
+    // Helper: look up the singleton from an attached object's context
+    static Form *instance(QObject *contextObject);
+
+signals:
+    void valuesChanged();
+    void submitted(QVariantMap values);
+
+private:
+    QSet<FormAttached *> m_fields;
 };
 
 #endif // FORM_H
