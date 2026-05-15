@@ -16,6 +16,15 @@ Item {
         id: repoModel
     }
 
+    // Mirror PAT from repoModel's service into AppSettings so Issues and Users
+    // tabs receive the same token without the student having to enter it three times.
+    Connections {
+        target: repoModel.service
+        function onAuthTokenChanged() { AppSettings.authToken = repoModel.service.authToken }
+    }
+
+    Component.onCompleted: repoModel.service.authToken = AppSettings.authToken
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 16

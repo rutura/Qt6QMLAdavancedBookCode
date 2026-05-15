@@ -88,7 +88,12 @@ Item {
         Label {
             Layout.fillWidth: true
             visible: repoModel.service.errorMessage.length > 0
-            text: repoModel.service.errorMessage
+            text: {
+                const msg = repoModel.service.errorMessage
+                if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
+                    return msg + "\n\nTip: enter a GitHub PAT in the token field below to raise your limit to 30 requests/minute, or wait for the limit to reset."
+                return msg
+            }
             color: "#B91C1C"
             wrapMode: Text.WordWrap
         }

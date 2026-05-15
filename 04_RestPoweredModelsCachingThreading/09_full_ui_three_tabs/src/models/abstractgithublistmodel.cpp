@@ -141,7 +141,13 @@ void AbstractGitHubListModel::onReplyFinished(QNetworkReply *reply)
 
     if (reply->error() != QNetworkReply::NoError && httpStatus != 304) {
         setStatus(Status::Error);
-        m_errorMessage = reply->errorString();
+        // Prefer GitHub's own error message from the response body.
+        const QByteArray errBody = reply->readAll();
+        const QJsonDocument errDoc = QJsonDocument::fromJson(errBody);
+        if (errDoc.isObject() && !errDoc.object()["message"].toString().isEmpty())
+            m_errorMessage = errDoc.object()["message"].toString();
+        else
+            m_errorMessage = reply->errorString();
         emit errorMessageChanged();
         setIsLoadingPage(false);
         return;

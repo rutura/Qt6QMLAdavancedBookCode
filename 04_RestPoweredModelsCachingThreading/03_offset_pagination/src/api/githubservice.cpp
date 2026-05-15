@@ -405,8 +405,20 @@ void GitHubService::onRequestFailed(QNetworkReply::NetworkError error)
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
     setIsLoading(false);
 
+    // GitHub returns {"message": "...", "documentation_url": "..."} in the response
+    // body even for error status codes (403, 429, etc.), so prefer that over generic Qt descriptions.
+    QString githubMessage;
+    if (reply) {
+        const QByteArray body = reply->readAll();
+        const QJsonDocument doc = QJsonDocument::fromJson(body);
+        if (doc.isObject())
+            githubMessage = doc.object()["message"].toString();
+    }
+
     QString errorMsg;
-    switch (error) {
+    if (!githubMessage.isEmpty()) {
+        errorMsg = githubMessage;
+    } else switch (error) {
     case QNetworkReply::AuthenticationRequiredError:
         errorMsg = "Authentication required. Please check your token.";
         break;

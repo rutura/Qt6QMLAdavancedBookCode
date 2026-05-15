@@ -42,9 +42,33 @@ Item {
         Label {
             Layout.fillWidth: true
             visible: root.gitHubService.errorMessage.length > 0
-            text: root.gitHubService.errorMessage
+            text: {
+                const msg = root.gitHubService.errorMessage
+                if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
+                    return msg + "\n\nTip: enter a GitHub PAT in the field below to raise your limit to 30 requests/minute, or wait for the limit to reset."
+                return msg
+            }
             color: "#B91C1C"
             wrapMode: Text.WordWrap
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Label {
+                text: "GitHub PAT:"
+                color: "#6B7280"
+                font.pixelSize: 12
+            }
+
+            TextField {
+                Layout.fillWidth: true
+                placeholderText: "ghp_… (optional — raises rate limit from 10 to 30 req/min)"
+                echoMode: TextInput.Password
+                text: root.gitHubService.authToken
+                onTextChanged: root.gitHubService.authToken = text
+            }
         }
 
         ScrollView {
