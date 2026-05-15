@@ -4,7 +4,7 @@ project(RepoExplorerPro VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -15,7 +15,12 @@ set(PROJECT_SOURCES
 set(QML_FILES
     qml/Main.qml
     qml/pages/RepositoryListPage.qml
+    qml/pages/IssueListPage.qml
+    qml/pages/UserListPage.qml
     qml/components/RepoDelegate.qml
+    qml/components/IssueDelegate.qml
+    qml/components/UserDelegate.qml
+    qml/components/TokenSettings.qml
 )
 
 qt_add_executable(RepoExplorerPro
@@ -33,10 +38,20 @@ qt_add_qml_module(RepoExplorerPro
         src/repository.cpp
         src/api/githubservice.h
         src/api/githubservice.cpp
+        src/models/abstractgithublistmodel.h
+        src/models/abstractgithublistmodel.cpp
         src/models/repositorylistmodel.h
         src/models/repositorylistmodel.cpp
+        src/models/issue.h
+        src/models/issue.cpp
+        src/models/issuelistmodel.h
+        src/models/issuelistmodel.cpp
+        src/models/userlistmodel.h
+        src/models/userlistmodel.cpp
         src/services/cachemanager.h
         src/services/cachemanager.cpp
+        src/services/appsettings.h
+        src/services/appsettings.cpp
         src/workers/cacheworker.h
         src/workers/cacheworker.cpp
 )
@@ -65,6 +80,7 @@ target_link_libraries(RepoExplorerPro
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Network
+    Qt6::Concurrent
 )
 
 include(GNUInstallDirs)
