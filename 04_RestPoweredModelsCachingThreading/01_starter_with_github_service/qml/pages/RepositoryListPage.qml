@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+import RepoExplorerProApp
+
 Item {
     id: root
 
@@ -9,119 +11,88 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        spacing: 0
 
-        RowLayout {
+        AppHeader {
             Layout.fillWidth: true
-            spacing: 8
 
-            TextField {
+            SearchField {
                 id: queryField
-                Layout.fillWidth: true
+                Layout.preferredWidth: 380
                 placeholderText: "Search GitHub repositories…"
                 text: "qt"
                 onAccepted: searchButton.clicked()
             }
 
-            Button {
+            AccentButton {
                 id: searchButton
                 text: "Search"
                 enabled: !root.gitHubService.isLoading && queryField.text.length > 0
                 onClicked: root.gitHubService.searchRepositories(queryField.text)
             }
+
+            ThemeToggle {}
         }
 
-        Label {
-            Layout.fillWidth: true
-            visible: root.gitHubService.isLoading
-            text: "Loading…"
-            color: "#6B7280"
-        }
-
-        Label {
-            Layout.fillWidth: true
-            visible: root.gitHubService.errorMessage.length > 0
-            text: {
-                const msg = root.gitHubService.errorMessage
-                if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
-                    return msg + "\n\nTip: enter a GitHub PAT in the field below to raise your limit to 30 requests/minute, or wait for the limit to reset."
-                return msg
-            }
-            color: "#B91C1C"
-            wrapMode: Text.WordWrap
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Label {
-                text: "GitHub PAT:"
-                color: "#6B7280"
-                font.pixelSize: 12
-            }
-
-            TextField {
-                Layout.fillWidth: true
-                placeholderText: "ghp_… (optional — raises rate limit from 10 to 30 req/min)"
-                echoMode: TextInput.Password
-                text: root.gitHubService.authToken
-                onTextChanged: root.gitHubService.authToken = text
-            }
-        }
-
-        ScrollView {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
+            Layout.margins: 24
+            spacing: 14
 
-            Column {
-                width: parent.width
-                spacing: 6
+            StatusStrip {
+                Layout.fillWidth: true
+                busy: root.gitHubService.isLoading
+                statusText: root.gitHubService.isLoading
+                            ? "Loading…"
+                            : root.gitHubService.repositories.length + " repositories"
 
-                Repeater {
-                    model: root.gitHubService.repositories
+                TokenField {
+                    service: root.gitHubService
+                }
+            }
 
-                    delegate: Rectangle {
-                        width: parent.width
-                        height: contentColumn.implicitHeight + 16
-                        color: "#FFFFFF"
-                        border.color: "#E5E7EB"
-                        radius: 4
+            Label {
+                Layout.fillWidth: true
+                visible: root.gitHubService.errorMessage.length > 0
+                text: {
+                    const msg = root.gitHubService.errorMessage
+                    if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
+                        return msg + "\n\nTip: add a GitHub token above to raise your rate limit, or wait for it to reset."
+                    return msg
+                }
+                color: Theme.error
+                wrapMode: Text.WordWrap
+                font.pixelSize: 13
+            }
 
-                        Column {
-                            id: contentColumn
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            spacing: 2
+            ListContainer {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: root.gitHubService.repositories
 
-                            Text {
-                                text: modelData.fullName
-                                font.pixelSize: 14
-                                font.bold: true
-                                color: "#111827"
-                            }
-                            Text {
-                                text: modelData.description && modelData.description.length > 0
-                                      ? modelData.description
-                                      : "(no description)"
-                                font.pixelSize: 12
-                                color: "#4B5563"
-                                wrapMode: Text.WordWrap
-                                width: parent.width
-                            }
-                            Text {
-                                text: "★ " + modelData.stargazersCount
-                                      + "    ⑂ " + modelData.forksCount
-                                      + "    " + (modelData.language || "—")
-                                font.pixelSize: 11
-                                color: "#6B7280"
-                            }
-                        }
-                    }
+                delegate: RepoCard {
+                    required property var modelData
+                    width: ListView.view ? ListView.view.width : implicitWidth
+                    fullName: modelData.fullName
+                    description: modelData.description
+                    stargazersCount: modelData.stargazersCount
+                    forksCount: modelData.forksCount
+                    language: modelData.language
+                    isPrivate: modelData.isPrivate
+                    updatedAt: modelData.updatedAt
                 }
             }
         }
+    }
+
+    EmptyState {
+        anchors.centerIn: parent
+        visible: !root.gitHubService.isLoading
+                 && root.gitHubService.repositories.length === 0
+                 && root.gitHubService.errorMessage.length === 0
+        glyph: "🔍"
+        title: "Search GitHub"
+        subtitle: "Type a query and hit Search to explore repositories"
     }
 }

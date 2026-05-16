@@ -15,6 +15,23 @@ set(PROJECT_SOURCES
 set(QML_FILES
     qml/Main.qml
     qml/pages/RepositoryListPage.qml
+    qml/components/AppHeader.qml
+    qml/components/SearchField.qml
+    qml/components/AccentButton.qml
+    qml/components/PillBadge.qml
+    qml/components/ThemeToggle.qml
+    qml/components/TokenField.qml
+    qml/components/RepoCard.qml
+    qml/components/StatusStrip.qml
+    qml/components/ListContainer.qml
+    qml/components/EmptyState.qml
+    qml/components/LoadingOverlay.qml
+)
+
+# Theme.qml is a QML singleton (pragma Singleton). Qt generates the qmldir
+# entry from this property — no hand-written qmldir needed.
+set_source_files_properties(qml/components/Theme.qml PROPERTIES
+    QT_QML_SINGLETON_TYPE TRUE
 )
 
 qt_add_executable(RepoExplorerPro
@@ -24,7 +41,9 @@ qt_add_executable(RepoExplorerPro
 qt_add_qml_module(RepoExplorerPro
     URI RepoExplorerProApp
     VERSION 1.0
-    QML_FILES ${QML_FILES}
+    QML_FILES
+        ${QML_FILES}
+        qml/components/Theme.qml
     SOURCES
         src/user.h
         src/user.cpp
