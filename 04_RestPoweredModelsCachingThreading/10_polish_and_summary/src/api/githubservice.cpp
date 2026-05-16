@@ -9,6 +9,7 @@
 #include <QElapsedTimer>
 #include <QtConcurrent>
 #include <QFutureWatcher>
+#include <QThread>
 
 GitHubService::GitHubService(QObject *parent)
     : QObject(parent)
@@ -73,10 +74,18 @@ void GitHubService::parseBytesAsync(const QByteArray &body,
         onParsed(repos, totalCount);
     });
 
-    QFuture<QList<Repository*>> future = QtConcurrent::run([body, total]() {
+    // The parsed objects are created on the QtConcurrent worker thread, so they
+    // acquire that thread's affinity. moveToThread() may only be called from an
+    // object's *current* thread, so we re-home them to the GUI thread from inside
+    // the worker (where they still live) before handing them back. Otherwise the
+    // model's setParent() on the GUI thread fails with a cross-thread warning.
+    QThread *guiThread = this->thread();
+    QFuture<QList<Repository*>> future = QtConcurrent::run([body, total, guiThread]() {
         QElapsedTimer timer;
         timer.start();
         QList<Repository*> repos = Repository::listFromJsonBytes(body, total);
+        for (Repository *r : repos)
+            r->moveToThread(guiThread);
         qDebug() << "[parse] off-GUI-thread parse of" << body.size()
                  << "bytes ->" << repos.size() << "repos in" << timer.elapsed() << "ms";
         return repos;
