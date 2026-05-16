@@ -9,11 +9,14 @@ ApplicationWindow {
     id: window
 
     visible: true
-    width: 1100
-    height: 750
-    minimumWidth: 800
-    minimumHeight: 500
+    width: 1180
+    height: 800
+    minimumWidth: 900
+    minimumHeight: 560
     title: "Repo Explorer Pro"
+
+    color: Theme.background
+    Behavior on color { ColorAnimation { duration: Theme.normalAnimation } }
 
     GitHubService {
         id: gitHubService
@@ -34,9 +37,42 @@ ApplicationWindow {
             Component.onCompleted: currentIndex = AppSettings.lastTabIndex
             onCurrentIndexChanged: AppSettings.lastTabIndex = currentIndex
 
-            TabButton { text: "Repositories" }
-            TabButton { text: "Issues" }
-            TabButton { text: "Users" }
+            background: Rectangle {
+                color: Theme.surface
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: 1
+                    color: Theme.borderLight
+                }
+            }
+
+            component AppTab: TabButton {
+                id: tabCtl
+                contentItem: Text {
+                    text: tabCtl.text
+                    color: tabCtl.checked ? Theme.accent : Theme.textSecondary
+                    font.pixelSize: 14
+                    font.weight: tabCtl.checked ? Font.DemiBold : Font.Normal
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    Behavior on color { ColorAnimation { duration: Theme.fastAnimation } }
+                }
+                background: Rectangle {
+                    color: "transparent"
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 2
+                        color: tabCtl.checked ? Theme.accent : "transparent"
+                        Behavior on color { ColorAnimation { duration: Theme.fastAnimation } }
+                    }
+                }
+            }
+
+            AppTab { text: "Repositories" }
+            AppTab { text: "Issues" }
+            AppTab { text: "Users" }
         }
 
         StackLayout {

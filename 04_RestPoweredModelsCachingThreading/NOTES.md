@@ -41,3 +41,14 @@ Rationale (the prompt's tie-breaker is "cleanest diff between sections"): rewrit
 
 ### GitHub search `total_count` is capped at 1000
 GitHub's search endpoints report `total_count` but will not page past 1000 results regardless of the real match count. The offset-pagination "X of N" label can therefore show an N larger than the number of rows that can actually be loaded. This is expected GitHub behavior, not a bug in the model.
+
+### Full visual polish from section 01 (overrides prompt.md "rough early sections")
+`prompt.md` says "earlier sections should look intentionally rough, section 09 is the one allowed to be visually polished." The author explicitly overrode this: the chapter must sell QML's visual quality from the first project. A complete dark/light design system (ported from `02_RestClientCustomTypes/09_UiImprovements`) ships **fully in section 01** and every section is polished.
+
+To keep the per-section teaching diff intact despite this, the design system is a **shared, frozen component library** (`qml/components/`: `Theme`, `AppHeader`, `SearchField`, `AccentButton`, `PillBadge`, `ThemeToggle`, `TokenField`, `RepoCard`, `StatusStrip`, `ListContainer`, `EmptyState`, `LoadingOverlay`, plus `IssueCard`/`UserCard` in 09+). It is byte-identical across all sections, so it never appears in a section→section diff. Each section's lesson delta lands only in its page(s) by dropping the new control into a slot the components already expose (`StatusStrip` extras, `ListContainer.footerComponent`, `AppHeader` controls). Verified: every adjacent diff is still minimal and matches the section's stated scope.
+
+### Theme is a real QML singleton, not chapter-2's passed-object pattern
+Chapter 2 instantiated `Theme` as a `QtObject` and threaded it through every component via `property var theme`. Chapter 4 instead makes `Theme.qml` a true QML singleton (`pragma Singleton` + `set_source_files_properties(... QT_QML_SINGLETON_TYPE TRUE)` in CMake). Components reference `Theme.accent` directly with zero plumbing. This is a deliberate, strictly-better choice for a chapter-wide design system that must stay identical across 10 sections — worth a sentence in the prose so readers understand why it diverges from the chapter-2 approach they saw.
+
+### Old plain delegates removed in favor of the card components
+The pre-redesign `RepoDelegate.qml` (sections 02–08) and `IssueDelegate.qml` / `UserDelegate.qml` / `TokenSettings.qml` (section 09) were replaced by `RepoCard` / `IssueCard` / `UserCard` / `TokenField` from the shared library and deleted, so no dead QML rides forward.

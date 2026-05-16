@@ -15,160 +15,160 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        spacing: 0
 
-        Label {
+        AppHeader {
             Layout.fillWidth: true
-            visible: repoModel.service.rateLimitRemaining >= 0
-            text: {
-                const r = repoModel.service.rateLimitRemaining
-                const t = repoModel.service.rateLimitTotal
-                const reset = repoModel.service.rateLimitReset
-                const resetStr = isNaN(reset.getTime()) ? "" :
-                    (" · resets " + Qt.formatTime(reset, "hh:mm"))
-                return "rate limit: " + r + " / " + t + " remaining" + resetStr
-            }
-            color: repoModel.service.rateLimitRemaining <= 5 ? "#B91C1C" : "#6B7280"
-            font.pixelSize: 12
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            TextField {
+            SearchField {
                 id: queryField
-                Layout.fillWidth: true
+                Layout.preferredWidth: 380
                 placeholderText: "Search GitHub repositories…"
                 text: "qt"
                 onAccepted: searchButton.clicked()
             }
 
-            Button {
+            AccentButton {
                 id: searchButton
                 text: "Search"
                 enabled: !repoModel.isLoadingPage && queryField.text.length > 0
                 onClicked: repoModel.search(queryField.text)
             }
 
-            ComboBox {
-                id: modeCombo
-                model: ["Offset", "Cursor"]
-                currentIndex: repoModel.useCursor ? 1 : 0
-                onActivated: repoModel.useCursor = (currentIndex === 1)
-            }
-
-            Switch {
-                text: "Auto-refresh"
-                checked: repoModel.autoRefresh
-                enabled: !repoModel.useCursor
-                onToggled: repoModel.autoRefresh = checked
-            }
+            ThemeToggle {}
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 12
-
-            BusyIndicator {
-                running: repoModel.isLoadingPage
-                visible: running
-                implicitWidth: 20
-                implicitHeight: 20
-            }
-            Label {
-                text: repoModel.useCursor
-                      ? (repoModel.count + " loaded — " + (repoModel.hasMore ? "more available" : "end of results"))
-                      : (repoModel.count + " of " + repoModel.totalCount + " (page " + repoModel.currentPage + ")")
-                color: "#6B7280"
-            }
-            Label {
-                visible: repoModel.service.isParsing
-                text: "parsing…"
-                color: "#2563EB"
-                font.italic: true
-            }
-            Item { Layout.fillWidth: true }
-        }
-
-        Label {
-            Layout.fillWidth: true
-            visible: repoModel.service.errorMessage.length > 0
-            text: {
-                const msg = repoModel.service.errorMessage
-                if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
-                    return msg + "\n\nTip: enter a GitHub PAT in the field below to raise your limit to 30 requests/minute, or wait for the limit to reset."
-                return msg
-            }
-            color: "#B91C1C"
-            wrapMode: Text.WordWrap
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Label {
-                text: "GitHub PAT:"
-                color: "#6B7280"
-                font.pixelSize: 12
-            }
-
-            TextField {
-                Layout.fillWidth: true
-                placeholderText: "ghp_… (optional — raises rate limit from 10 to 30 req/min)"
-                echoMode: TextInput.Password
-                text: repoModel.service.authToken
-                onTextChanged: repoModel.service.authToken = text
-            }
-        }
-
-        ListView {
-            id: listView
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            spacing: 6
-            model: repoModel
+            Layout.margins: 24
+            spacing: 14
 
-            delegate: RepoDelegate {
-                fullName: model.fullName
-                description: model.description
-                stargazersCount: model.stargazersCount
-                forksCount: model.forksCount
-                language: model.language
-                isNew: model.isNew
-            }
+            StatusStrip {
+                Layout.fillWidth: true
+                busy: repoModel.isLoadingPage
+                statusText: repoModel.useCursor
+                            ? (repoModel.count + " loaded · "
+                               + (repoModel.hasMore ? "more available" : "end of results"))
+                            : (repoModel.count + " of " + repoModel.totalCount
+                               + "  ·  page " + repoModel.currentPage)
 
-            // Cursor-mode infinite-scroll trigger: footer becomes visible when the user
-            // scrolls past the last row, which fires fetchNextPage(). Offset mode keeps
-            // its explicit Load-more button below the list.
-            footer: Item {
-                width: listView.width
-                height: visible ? 56 : 0
-                visible: repoModel.useCursor && repoModel.hasMore
-
-                onVisibleChanged: {
-                    if (visible && !repoModel.isLoadingPage)
-                        repoModel.fetchNextPage()
+                PillBadge {
+                    visible: repoModel.service.rateLimitRemaining >= 0
+                    text: {
+                        const r = repoModel.service.rateLimitRemaining
+                        const t = repoModel.service.rateLimitTotal
+                        const reset = repoModel.service.rateLimitReset
+                        const resetStr = isNaN(reset.getTime()) ? ""
+                            : (" · " + Qt.formatTime(reset, "hh:mm"))
+                        return "rate " + r + "/" + t + resetStr
+                    }
+                    pillColor: repoModel.service.rateLimitRemaining <= 5
+                               ? Theme.error : Theme.surfaceHover
+                    textColor: repoModel.service.rateLimitRemaining <= 5
+                               ? Theme.textOnAccent : Theme.textSecondary
                 }
 
-                BusyIndicator {
-                    anchors.centerIn: parent
-                    running: parent.visible && repoModel.isLoadingPage
+                PillBadge {
+                    visible: repoModel.service.isParsing
+                    text: "parsing…"
+                    pillColor: Theme.info
+                }
+
+                ComboBox {
+                    id: modeCombo
+                    model: ["Offset", "Cursor"]
+                    currentIndex: repoModel.useCursor ? 1 : 0
+                    onActivated: repoModel.useCursor = (currentIndex === 1)
+                }
+
+                Switch {
+                    text: "Auto-refresh"
+                    checked: repoModel.autoRefresh
+                    enabled: !repoModel.useCursor
+                    onToggled: repoModel.autoRefresh = checked
+                    contentItem: Text {
+                        text: parent.text
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: parent.indicator.width + 6
+                    }
+                }
+
+                TokenField {
+                    service: repoModel.service
                 }
             }
 
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-        }
+            Label {
+                Layout.fillWidth: true
+                visible: repoModel.service.errorMessage.length > 0
+                text: {
+                    const msg = repoModel.service.errorMessage
+                    if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
+                        return msg + "\n\nTip: add a GitHub token above to raise your rate limit, or wait for it to reset."
+                    return msg
+                }
+                color: Theme.error
+                wrapMode: Text.WordWrap
+                font.pixelSize: 13
+            }
 
-        Button {
-            Layout.alignment: Qt.AlignHCenter
-            visible: !repoModel.useCursor
-            text: repoModel.isLoadingPage ? "Loading…" : "Load more"
-            enabled: repoModel.hasMore && !repoModel.isLoadingPage
-            onClicked: repoModel.loadMore()
+            ListContainer {
+                id: listContainer
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: repoModel
+
+                delegate: RepoCard {
+                    required property var model
+                    width: ListView.view ? ListView.view.width : implicitWidth
+                    fullName: model.fullName
+                    description: model.description
+                    stargazersCount: model.stargazersCount
+                    forksCount: model.forksCount
+                    language: model.language
+                    isNew: model.isNew
+                }
+
+                // Cursor-mode infinite scroll: the footer becomes visible when the
+                // user scrolls past the last row, which triggers fetchNextPage().
+                footerComponent: Item {
+                    width: listContainer.view.width
+                    height: visible ? 56 : 0
+                    visible: repoModel.useCursor && repoModel.hasMore
+
+                    onVisibleChanged: {
+                        if (visible && !repoModel.isLoadingPage)
+                            repoModel.fetchNextPage()
+                    }
+
+                    BusyIndicator {
+                        anchors.centerIn: parent
+                        running: parent.visible && repoModel.isLoadingPage
+                    }
+                }
+            }
+
+            // Offset mode keeps an explicit Load-more button.
+            AccentButton {
+                Layout.alignment: Qt.AlignHCenter
+                visible: !repoModel.useCursor
+                text: repoModel.isLoadingPage ? "Loading…" : "Load more"
+                enabled: repoModel.hasMore && !repoModel.isLoadingPage
+                onClicked: repoModel.loadMore()
+            }
         }
+    }
+
+    EmptyState {
+        anchors.centerIn: parent
+        visible: !repoModel.isLoadingPage
+                 && repoModel.count === 0
+                 && repoModel.service.errorMessage.length === 0
+        glyph: "🔍"
+        title: "Search GitHub"
+        subtitle: "Type a query and hit Search to explore repositories"
     }
 }

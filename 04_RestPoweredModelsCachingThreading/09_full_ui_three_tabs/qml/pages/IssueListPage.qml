@@ -13,117 +13,101 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        spacing: 0
 
-        RowLayout {
+        AppHeader {
             Layout.fillWidth: true
-            spacing: 8
 
-            TextField {
+            SearchField {
                 id: queryField
-                Layout.fillWidth: true
+                Layout.preferredWidth: 380
                 placeholderText: "Search GitHub issues…"
                 text: "is:issue qt qml"
                 onAccepted: searchButton.clicked()
             }
 
-            Button {
+            AccentButton {
                 id: searchButton
                 text: "Search"
                 enabled: !issueModel.isLoadingPage && queryField.text.length > 0
                 onClicked: issueModel.search(queryField.text)
             }
+
+            ThemeToggle {}
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 12
-
-            BusyIndicator {
-                running: issueModel.isLoadingPage
-                visible: running
-                implicitWidth: 20
-                implicitHeight: 20
-            }
-
-            Label {
-                text: issueModel.count + " of " + issueModel.totalCount
-                color: "#6B7280"
-            }
-
-            Item { Layout.fillWidth: true }
-        }
-
-        Label {
-            Layout.fillWidth: true
-            visible: issueModel.errorMessage.length > 0
-            text: {
-                const msg = issueModel.errorMessage
-                if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
-                    return msg + "\n\nTip: enter a GitHub PAT in the field below to raise your limit to 30 requests/minute, or wait for the limit to reset."
-                return msg
-            }
-            color: "#B91C1C"
-            wrapMode: Text.WordWrap
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Label {
-                text: "GitHub PAT:"
-                color: "#6B7280"
-                font.pixelSize: 12
-            }
-
-            TextField {
-                Layout.fillWidth: true
-                placeholderText: "ghp_… (optional — raises rate limit from 10 to 30 req/min)"
-                echoMode: TextInput.Password
-                text: issueModel.authToken
-                onTextChanged: issueModel.authToken = text
-            }
-        }
-
-        ListView {
-            id: listView
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 8
-            clip: true
+            Layout.margins: 24
+            spacing: 14
 
-            model: issueModel
+            StatusStrip {
+                Layout.fillWidth: true
+                busy: issueModel.isLoadingPage
+                statusText: issueModel.count + " of " + issueModel.totalCount
 
-            delegate: IssueDelegate {
-                width: listView.width
-                number:       model.number
-                title:        model.title
-                state:        model.state
-                userLogin:    model.userLogin
-                commentsCount: model.commentsCount
-                htmlUrl:      model.htmlUrl
+                TokenField {
+                    service: issueModel
+                }
             }
 
-            footer: Item {
-                width: listView.width
-                height: issueModel.hasMore ? 60 : 0
-                visible: issueModel.hasMore
+            Label {
+                Layout.fillWidth: true
+                visible: issueModel.errorMessage.length > 0
+                text: {
+                    const msg = issueModel.errorMessage
+                    if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
+                        return msg + "\n\nTip: add a GitHub token above to raise your rate limit, or wait for it to reset."
+                    return msg
+                }
+                color: Theme.error
+                wrapMode: Text.WordWrap
+                font.pixelSize: 13
+            }
 
-                Button {
-                    anchors.centerIn: parent
-                    text: issueModel.isLoadingPage ? "Loading…" : "Load More"
-                    enabled: !issueModel.isLoadingPage
-                    onClicked: issueModel.loadMore()
+            ListContainer {
+                id: listContainer
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: issueModel
+
+                delegate: IssueCard {
+                    required property var model
+                    width: ListView.view ? ListView.view.width : implicitWidth
+                    number: model.number
+                    title: model.title
+                    state: model.state
+                    userLogin: model.userLogin
+                    commentsCount: model.commentsCount
                 }
 
-                // Sentinel: entering viewport triggers load-more automatically.
-                ListView.onAdd: {
-                    if (listView.atYEnd && issueModel.hasMore && !issueModel.isLoadingPage)
-                        issueModel.loadMore()
+                footerComponent: Item {
+                    width: listContainer.view.width
+                    height: visible ? 56 : 0
+                    visible: issueModel.hasMore
+
+                    onVisibleChanged: {
+                        if (visible && !issueModel.isLoadingPage)
+                            issueModel.loadMore()
+                    }
+
+                    BusyIndicator {
+                        anchors.centerIn: parent
+                        running: parent.visible && issueModel.isLoadingPage
+                    }
                 }
             }
         }
+    }
+
+    EmptyState {
+        anchors.centerIn: parent
+        visible: !issueModel.isLoadingPage
+                 && issueModel.count === 0
+                 && issueModel.errorMessage.length === 0
+        glyph: "🐛"
+        title: "Search Issues"
+        subtitle: "Find issues across GitHub by keyword"
     }
 }
