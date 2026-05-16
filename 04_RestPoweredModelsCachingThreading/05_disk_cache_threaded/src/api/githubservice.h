@@ -6,6 +6,8 @@
 #include <QNetworkReply>
 #include <QVariantList>
 #include <QList>
+#include <QHash>
+#include <QString>
 #include <qqml.h>
 
 class Repository;

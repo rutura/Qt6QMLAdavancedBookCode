@@ -41,11 +41,9 @@ ApplicationWindow {
                 gitHubService: gitHubService
             }
 
-            IssueListPage {
-            }
+            IssueListPage {}
 
-            UserListPage {
-            }
+            UserListPage {}
         }
     }
 }

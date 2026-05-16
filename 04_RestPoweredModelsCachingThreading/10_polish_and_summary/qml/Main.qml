@@ -17,28 +17,9 @@ ApplicationWindow {
 
     GitHubService {
         id: gitHubService
-        // Restore PAT from persisted settings on startup.
+        // Restore the persisted PAT on startup; write changes straight back.
         authToken: AppSettings.authToken
         onAuthTokenChanged: AppSettings.authToken = authToken
-    }
-
-    // Keyboard shortcuts for the search bar in the active tab.
-    Shortcut {
-        sequence: "Ctrl+L"
-        onActivated: {
-            const page = stackLayout.itemAt(tabBar.currentIndex)
-            if (page && page.focusSearchField)
-                page.focusSearchField()
-        }
-    }
-
-    Shortcut {
-        sequence: StandardKey.Cancel
-        onActivated: {
-            const page = stackLayout.itemAt(tabBar.currentIndex)
-            if (page && page.clearSearchField)
-                page.clearSearchField()
-        }
     }
 
     ColumnLayout {
@@ -48,8 +29,9 @@ ApplicationWindow {
         TabBar {
             id: tabBar
             Layout.fillWidth: true
-            // Persist and restore the active tab across runs.
-            currentIndex: AppSettings.lastTabIndex
+
+            // Restore the last-used tab, and persist any change.
+            Component.onCompleted: currentIndex = AppSettings.lastTabIndex
             onCurrentIndexChanged: AppSettings.lastTabIndex = currentIndex
 
             TabButton { text: "Repositories" }
@@ -58,7 +40,6 @@ ApplicationWindow {
         }
 
         StackLayout {
-            id: stackLayout
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: tabBar.currentIndex
@@ -67,12 +48,9 @@ ApplicationWindow {
                 gitHubService: gitHubService
             }
 
-            IssueListPage {
-            }
+            IssueListPage {}
 
-            UserListPage {
-            }
+            UserListPage {}
         }
     }
 }
-

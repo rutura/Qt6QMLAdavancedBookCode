@@ -6,14 +6,58 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QtConcurrent>
 #include <QFutureWatcher>
-#include <QElapsedTimer>
 
 GitHubService::GitHubService(QObject *parent)
     : QObject(parent)
     , m_networkManager(new QNetworkAccessManager(this))
 {
+}
+
+void GitHubService::beginParse()
+{
+    if (m_inflightParses++ == 0)
+        emit isParsingChanged();
+}
+
+void GitHubService::endParse()
+{
+    if (--m_inflightParses == 0)
+        emit isParsingChanged();
+}
+
+void GitHubService::parseBytesAsync(const QByteArray &body,
+                                    std::function<void(const QList<Repository*> &, int)> onParsed)
+{
+    beginParse();
+
+    auto *watcher = new QFutureWatcher<QList<Repository*>>(this);
+
+    // The shared total-count needs to survive past the lambda that produces the list,
+    // so it is captured into a heap cell the watcher owns for its lifetime.
+    auto *total = new int(0);
+
+    connect(watcher, &QFutureWatcher<QList<Repository*>>::finished, this,
+            [this, watcher, total, onParsed]() {
+        const QList<Repository*> repos = watcher->result();
+        const int totalCount = *total;
+        delete total;
+        watcher->deleteLater();
+        endParse();
+        onParsed(repos, totalCount);
+    });
+
+    QFuture<QList<Repository*>> future = QtConcurrent::run([body, total]() {
+        QElapsedTimer timer;
+        timer.start();
+        QList<Repository*> repos = Repository::listFromJsonBytes(body, total);
+        qDebug() << "[parse] off-GUI-thread parse of" << body.size()
+                 << "bytes ->" << repos.size() << "repos in" << timer.elapsed() << "ms";
+        return repos;
+    });
+    watcher->setFuture(future);
 }
 
 void GitHubService::setCache(CacheManager *cache)
@@ -281,39 +325,17 @@ void GitHubService::onSearchResultsPageReceived()
     const QByteArray data = reply->readAll();
     reply->deleteLater();
 
-    if (m_cache && !data.isEmpty())
+    if (m_cache && !data.isEmpty()) {
         m_cache->requestSave(cacheKey, data, etag);
-
-    // Extract total_count synchronously (single int field, negligible cost).
-    int totalCount = 0;
-    {
-        QJsonDocument doc = QJsonDocument::fromJson(data);
-        if (doc.isObject())
-            totalCount = doc.object().value("total_count").toInt();
     }
 
-    m_inflightParses++;
-    if (m_inflightParses == 1)
-        emit isParsingChanged();
-
-    QElapsedTimer timer;
-    timer.start();
-
-    auto *watcher = new QFutureWatcher<QList<Repository*>>(this);
-    const int pageCopy = page;
-    const int totalCopy = totalCount;
-    connect(watcher, &QFutureWatcher<QList<Repository*>>::finished, this,
-            [this, watcher, pageCopy, totalCopy, timer]() mutable {
-                qDebug() << "Page JSON parse:" << timer.elapsed() << "ms,"
-                         << watcher->result().size() << "items";
-                if (--m_inflightParses == 0)
-                    emit isParsingChanged();
-                emit searchResultsPageReady(watcher->result(), pageCopy, totalCopy);
-                watcher->deleteLater();
-            });
-    watcher->setFuture(QtConcurrent::run([data]() {
-        return Repository::listFromJsonBytes(data);
-    }));
+    parseBytesAsync(data, [this, page](const QList<Repository*> &repos, int totalCount) {
+        if (repos.isEmpty() && totalCount == 0) {
+            setErrorMessage("JSON parse error on paged search response");
+            return;
+        }
+        emit searchResultsPageReady(repos, page, totalCount);
+    });
 }
 
 void GitHubService::searchRepositoriesCursor(const QString &query, int perPage,
@@ -428,29 +450,14 @@ void GitHubService::onSearchResultsCursorReceived()
     const QByteArray data = reply->readAll();
     reply->deleteLater();
 
-    if (m_cache && !data.isEmpty())
+    if (m_cache && !data.isEmpty()) {
         m_cache->requestSave(cacheKey, data, etag);
+    }
 
-    m_inflightParses++;
-    if (m_inflightParses == 1)
-        emit isParsingChanged();
-
-    QElapsedTimer timer;
-    timer.start();
-
-    auto *watcher = new QFutureWatcher<QList<Repository*>>(this);
-    connect(watcher, &QFutureWatcher<QList<Repository*>>::finished, this,
-            [this, watcher, nextUrl, isFirstPage, timer]() mutable {
-                qDebug() << "Cursor JSON parse:" << timer.elapsed() << "ms,"
-                         << watcher->result().size() << "items";
-                if (--m_inflightParses == 0)
-                    emit isParsingChanged();
-                emit searchResultsCursorReady(watcher->result(), nextUrl, isFirstPage);
-                watcher->deleteLater();
-            });
-    watcher->setFuture(QtConcurrent::run([data]() {
-        return Repository::listFromJsonBytes(data);
-    }));
+    parseBytesAsync(data, [this, nextUrl, isFirstPage](const QList<Repository*> &repos, int totalCount) {
+        Q_UNUSED(totalCount);
+        emit searchResultsCursorReady(repos, nextUrl, isFirstPage);
+    });
 }
 
 void GitHubService::clearRepositories()

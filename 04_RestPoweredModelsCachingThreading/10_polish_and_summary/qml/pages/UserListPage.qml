@@ -7,13 +7,8 @@ import RepoExplorerProApp
 Item {
     id: root
 
-    function focusSearchField() { queryField.forceActiveFocus() }
-    function clearSearchField() { queryField.clear() }
-
     UserListModel {
         id: userModel
-        // Section 10: single source of truth — all three tabs share one PAT via AppSettings.
-        authToken: AppSettings.authToken
     }
 
     ColumnLayout {
@@ -87,9 +82,8 @@ Item {
                 Layout.fillWidth: true
                 placeholderText: "ghp_… (optional — raises rate limit from 10 to 30 req/min)"
                 echoMode: TextInput.Password
-                // Write to AppSettings so the change propagates to all tabs.
-                text: AppSettings.authToken
-                onTextChanged: AppSettings.authToken = text
+                text: userModel.authToken
+                onTextChanged: userModel.authToken = text
             }
         }
 

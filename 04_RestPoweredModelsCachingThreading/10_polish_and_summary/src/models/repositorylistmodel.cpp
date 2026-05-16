@@ -5,6 +5,7 @@
 
 #include <QQmlEngine>
 #include <QUrl>
+#include <QHash>
 
 RepositoryListModel::RepositoryListModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -23,10 +24,24 @@ RepositoryListModel::RepositoryListModel(QObject *parent)
     connect(m_service, &GitHubService::searchResultsCursorReady,
             this, &RepositoryListModel::onSearchResultsCursorReady);
 
-    connect(&m_refreshTimer, &QTimer::timeout, this, &RepositoryListModel::onRefreshTimer);
+    m_refreshTimer.setInterval(m_refreshIntervalMs);
+    connect(&m_refreshTimer, &QTimer::timeout, this, &RepositoryListModel::onRefreshTick);
 
-    m_isNewClearTimer.setSingleShot(true);
-    connect(&m_isNewClearTimer, &QTimer::timeout, this, &RepositoryListModel::onIsNewClearTimer);
+    // Clears the transient "is new" highlight a few seconds after rows are inserted.
+    m_clearNewTimer.setSingleShot(true);
+    m_clearNewTimer.setInterval(3000);
+    connect(&m_clearNewTimer, &QTimer::timeout, this, [this]() {
+        if (m_newRows.isEmpty())
+            return;
+        const QList<int> rows = m_newRows.values();
+        m_newRows.clear();
+        for (int row : rows) {
+            if (row >= 0 && row < m_repos.size()) {
+                const QModelIndex idx = index(row);
+                emit dataChanged(idx, idx, { IsNewRole });
+            }
+        }
+    });
 }
 
 int RepositoryListModel::rowCount(const QModelIndex &parent) const
@@ -51,7 +66,7 @@ QVariant RepositoryListModel::data(const QModelIndex &index, int role) const
     case ForksRole:       return repo->forksCount();
     case LanguageRole:    return repo->language();
     case UrlRole:         return repo->htmlUrl();
-    case IsNewRole:       return m_newIds.contains(repo->id());
+    case IsNewRole:       return m_newRows.contains(index.row());
     default:              return {};
     }
 }
@@ -93,139 +108,6 @@ void RepositoryListModel::setUseCursor(bool useCursor)
         emit useCursorChanged();
         emit hasMoreChanged();
     }
-}
-
-void RepositoryListModel::setRefreshIntervalMs(int ms)
-{
-    if (m_refreshIntervalMs != ms && ms > 0) {
-        m_refreshIntervalMs = ms;
-        emit refreshIntervalMsChanged();
-        if (m_autoRefresh) {
-            m_refreshTimer.stop();
-            m_refreshTimer.start(m_refreshIntervalMs);
-        }
-    }
-}
-
-void RepositoryListModel::setAutoRefresh(bool enabled)
-{
-    if (m_autoRefresh != enabled) {
-        m_autoRefresh = enabled;
-        emit autoRefreshChanged();
-        if (enabled && !m_currentQuery.isEmpty())
-            m_refreshTimer.start(m_refreshIntervalMs);
-        else
-            m_refreshTimer.stop();
-    }
-}
-
-void RepositoryListModel::onRefreshTimer()
-{
-    if (m_isLoadingPage || m_currentQuery.isEmpty())
-        return;
-    m_isRefreshing = true;
-    setIsLoadingPage(true);
-    if (m_useCursor)
-        m_service->searchRepositoriesCursor(m_currentQuery, m_perPage);
-    else
-        m_service->searchRepositoriesPage(m_currentQuery, 1, m_perPage);
-}
-
-void RepositoryListModel::onIsNewClearTimer()
-{
-    if (m_newIds.isEmpty())
-        return;
-    // Collect rows that need dataChanged before clearing the set.
-    QVector<int> rowsToUpdate;
-    for (int row = 0; row < m_repos.size(); ++row) {
-        if (m_newIds.contains(m_repos.at(row)->id()))
-            rowsToUpdate.append(row);
-    }
-    m_newIds.clear();
-    for (int row : rowsToUpdate) {
-        const QModelIndex idx = index(row);
-        emit dataChanged(idx, idx, {IsNewRole});
-    }
-}
-
-void RepositoryListModel::applyDiff(const QList<Repository*> &incoming)
-{
-    // Build lookup structures.
-    QHash<int, Repository*> incomingById;
-    incomingById.reserve(incoming.size());
-    for (Repository *r : incoming)
-        incomingById.insert(r->id(), r);
-
-    QHash<int, int> currentIdxById;
-    currentIdxById.reserve(m_repos.size());
-    for (int i = 0; i < m_repos.size(); ++i)
-        currentIdxById.insert(m_repos.at(i)->id(), i);
-
-    // Remove rows absent from incoming (iterate backwards to preserve indices).
-    for (int row = m_repos.size() - 1; row >= 0; --row) {
-        if (!incomingById.contains(m_repos.at(row)->id())) {
-            beginRemoveRows({}, row, row);
-            Repository *dead = m_repos.takeAt(row);
-            dead->deleteLater();
-            endRemoveRows();
-        }
-    }
-
-    // Rebuild currentIdxById after removals.
-    currentIdxById.clear();
-    for (int i = 0; i < m_repos.size(); ++i)
-        currentIdxById.insert(m_repos.at(i)->id(), i);
-
-    // Update overlapping rows; collect new ids.
-    QList<int> newIds;
-    for (Repository *incoming_r : incoming) {
-        const int id = incoming_r->id();
-        if (currentIdxById.contains(id)) {
-            Repository *existing = m_repos.at(currentIdxById.value(id));
-            QVector<int> changedRoles;
-            if (existing->stargazersCount() != incoming_r->stargazersCount()) {
-                existing->setStargazersCount(incoming_r->stargazersCount());
-                changedRoles.append(StarsRole);
-            }
-            if (existing->forksCount() != incoming_r->forksCount()) {
-                existing->setForksCount(incoming_r->forksCount());
-                changedRoles.append(ForksRole);
-            }
-            if (existing->description() != incoming_r->description()) {
-                existing->setDescription(incoming_r->description());
-                changedRoles.append(DescriptionRole);
-            }
-            if (!changedRoles.isEmpty()) {
-                const QModelIndex idx = index(currentIdxById.value(id));
-                emit dataChanged(idx, idx, changedRoles);
-            }
-            incoming_r->deleteLater(); // We updated in-place; discard the incoming copy.
-        } else {
-            newIds.append(id);
-        }
-    }
-
-    // Prepend genuinely new items at row 0.
-    QList<Repository*> toInsert;
-    for (Repository *incoming_r : incoming) {
-        if (newIds.contains(incoming_r->id()))
-            toInsert.append(incoming_r);
-    }
-    if (!toInsert.isEmpty()) {
-        beginInsertRows({}, 0, toInsert.size() - 1);
-        for (int i = toInsert.size() - 1; i >= 0; --i) {
-            toInsert.at(i)->setParent(this);
-            m_repos.prepend(toInsert.at(i));
-        }
-        endInsertRows();
-        for (int id : newIds)
-            m_newIds.insert(id);
-        // Restart/start the clear timer: new items stay highlighted for 3 s.
-        m_isNewClearTimer.start(3000);
-    }
-
-    emit countChanged();
-    emit hasMoreChanged();
 }
 
 void RepositoryListModel::search(const QString &query)
@@ -270,8 +152,9 @@ void RepositoryListModel::onSearchResultsPageReady(const QList<Repository*> &rep
     setIsLoadingPage(false);
     setTotalCount(totalCount);
 
-    if (m_isRefreshing && page == 1) {
-        m_isRefreshing = false;
+    if (page == 1 && m_refreshing) {
+        // Timer-driven refresh: merge in place so scroll position survives.
+        m_refreshing = false;
         applyDiff(repositories);
     } else if (page == 1) {
         resetWith(repositories);
@@ -348,4 +231,124 @@ void RepositoryListModel::appendBatch(const QList<Repository*> &batch)
     }
     endInsertRows();
     emit countChanged();
+}
+
+void RepositoryListModel::setAutoRefresh(bool autoRefresh)
+{
+    if (m_autoRefresh == autoRefresh)
+        return;
+    m_autoRefresh = autoRefresh;
+    if (m_autoRefresh)
+        m_refreshTimer.start();
+    else
+        m_refreshTimer.stop();
+    emit autoRefreshChanged();
+}
+
+void RepositoryListModel::setRefreshIntervalMs(int ms)
+{
+    if (m_refreshIntervalMs == ms || ms < 1000)
+        return;
+    m_refreshIntervalMs = ms;
+    m_refreshTimer.setInterval(ms);
+    emit refreshIntervalMsChanged();
+}
+
+void RepositoryListModel::onRefreshTick()
+{
+    // Cursor mode has no stable "page 1" to diff against; only offset mode polls.
+    if (m_currentQuery.isEmpty() || m_isLoadingPage || m_useCursor)
+        return;
+
+    m_refreshing = true;
+    setIsLoadingPage(true);
+    m_service->searchRepositoriesPage(m_currentQuery, 1, m_perPage);
+}
+
+void RepositoryListModel::applyDiff(const QList<Repository*> &incoming)
+{
+    // Index current rows by stable GitHub id.
+    QHash<int, int> currentRowById;
+    currentRowById.reserve(m_repos.size());
+    for (int i = 0; i < m_repos.size(); ++i)
+        currentRowById.insert(m_repos.at(i)->id(), i);
+
+    QSet<int> incomingIds;
+    incomingIds.reserve(incoming.size());
+    for (Repository *r : incoming)
+        incomingIds.insert(r->id());
+
+    // 1) Remove rows whose id vanished from the incoming page.
+    for (int row = m_repos.size() - 1; row >= 0; --row) {
+        if (!incomingIds.contains(m_repos.at(row)->id())) {
+            beginRemoveRows({}, row, row);
+            delete m_repos.takeAt(row);
+            endRemoveRows();
+        }
+    }
+
+    // 2) Update changed fields on rows whose id is still present.
+    currentRowById.clear();
+    for (int i = 0; i < m_repos.size(); ++i)
+        currentRowById.insert(m_repos.at(i)->id(), i);
+
+    for (Repository *in : incoming) {
+        auto it = currentRowById.constFind(in->id());
+        if (it == currentRowById.constEnd())
+            continue;
+        Repository *cur = m_repos.at(it.value());
+        QList<int> changedRoles;
+        if (cur->stargazersCount() != in->stargazersCount()) {
+            cur->setStargazersCount(in->stargazersCount());
+            changedRoles << StarsRole;
+        }
+        if (cur->forksCount() != in->forksCount()) {
+            cur->setForksCount(in->forksCount());
+            changedRoles << ForksRole;
+        }
+        if (cur->description() != in->description()) {
+            cur->setDescription(in->description());
+            changedRoles << DescriptionRole;
+        }
+        if (!changedRoles.isEmpty()) {
+            const QModelIndex idx = index(it.value());
+            emit dataChanged(idx, idx, changedRoles);
+        }
+    }
+
+    // 3) Insert genuinely new ids at the top, flagged "new" for the highlight cue.
+    QList<Repository*> freshlyNew;
+    for (Repository *in : incoming) {
+        if (!currentRowById.contains(in->id()))
+            freshlyNew.append(in);
+    }
+    if (!freshlyNew.isEmpty()) {
+        beginInsertRows({}, 0, freshlyNew.size() - 1);
+        for (int i = freshlyNew.size() - 1; i >= 0; --i) {
+            Repository *r = freshlyNew.at(i);
+            r->setParent(this);
+            m_repos.prepend(r);
+        }
+        endInsertRows();
+        emit countChanged();
+
+        // Newly-inserted rows occupy [0, freshlyNew.size()-1].
+        m_newRows.clear();
+        for (int row = 0; row < freshlyNew.size(); ++row)
+            markNew(row);
+        m_clearNewTimer.start();
+    }
+
+    // incoming objects not adopted above are duplicates of existing rows — free them.
+    for (Repository *in : incoming) {
+        if (!freshlyNew.contains(in) && in->parent() != this)
+            delete in;
+    }
+}
+
+void RepositoryListModel::markNew(int row)
+{
+    m_newRows.insert(row);
+    const QModelIndex idx = index(row);
+    emit dataChanged(idx, idx, { IsNewRole });
 }

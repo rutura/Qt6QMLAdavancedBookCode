@@ -6,7 +6,11 @@
 #include <QNetworkReply>
 #include <QVariantList>
 #include <QList>
+#include <QHash>
+#include <QString>
 #include <qqml.h>
+
+#include <functional>
 
 class Repository;
 class CacheManager;
@@ -18,18 +22,18 @@ class GitHubService : public QObject
 
     Q_PROPERTY(QString authToken READ authToken WRITE setAuthToken NOTIFY authTokenChanged)
     Q_PROPERTY(bool isLoading READ isLoading NOTIFY isLoadingChanged)
+    Q_PROPERTY(bool isParsing READ isParsing NOTIFY isParsingChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorMessageChanged)
     Q_PROPERTY(QVariantList repositories READ repositories NOTIFY repositoriesChanged)
-    Q_PROPERTY(bool isParsing READ isParsing NOTIFY isParsingChanged)
 
 public:
     explicit GitHubService(QObject *parent = nullptr);
 
     QString authToken() const { return m_authToken; }
     bool isLoading() const { return m_isLoading; }
+    bool isParsing() const { return m_inflightParses > 0; }
     QString errorMessage() const { return m_errorMessage; }
     QVariantList repositories() const { return m_repositories; }
-    bool isParsing() const { return m_inflightParses > 0; }
 
     void setAuthToken(const QString &token);
 
@@ -59,9 +63,9 @@ public:
 signals:
     void authTokenChanged();
     void isLoadingChanged();
+    void isParsingChanged();
     void errorMessageChanged();
     void repositoriesChanged();
-    void isParsingChanged();
     void repositoryFetched(const QVariant &repository);
 
     // Raw-typed signal consumed by the new RepositoryListModel.
@@ -107,14 +111,22 @@ private:
     QVariant parseRepositoryJson(const QJsonObject &json);
     QList<Repository*> parseSearchItems(const QByteArray &body, int *totalCountOut = nullptr) const;
 
+    // Parses `body` on a worker thread via QtConcurrent. When parsing finishes,
+    // `onParsed(repos, totalCount)` is invoked on the GUI thread. isParsing stays
+    // true for the duration so QML can show a "parsing…" state distinct from "fetching…".
+    void parseBytesAsync(const QByteArray &body,
+                         std::function<void(const QList<Repository*> &, int)> onParsed);
+    void beginParse();
+    void endParse();
+
     QNetworkAccessManager *m_networkManager;
     QString m_authToken;
     bool m_isLoading = false;
+    int m_inflightParses = 0;
     QString m_errorMessage;
     QVariantList m_repositories;
     CacheManager *m_cache = nullptr;
     QHash<QString, PendingRequest> m_pendingByKey;
-    int m_inflightParses = 0;
 };
 
 #endif // GITHUBSERVICE_H

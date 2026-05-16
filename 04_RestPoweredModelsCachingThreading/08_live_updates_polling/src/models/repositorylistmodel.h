@@ -4,8 +4,8 @@
 #include <QAbstractListModel>
 #include <QList>
 #include <QString>
-#include <QTimer>
 #include <QSet>
+#include <QTimer>
 #include <qqml.h>
 
 class GitHubService;
@@ -28,8 +28,8 @@ class RepositoryListModel : public QAbstractListModel
     Q_PROPERTY(bool isLoadingPage READ isLoadingPage NOTIFY isLoadingPageChanged)
     Q_PROPERTY(bool useCursor READ useCursor WRITE setUseCursor NOTIFY useCursorChanged)
     Q_PROPERTY(QString nextUrl READ nextUrl NOTIFY nextUrlChanged)
-    Q_PROPERTY(int refreshIntervalMs READ refreshIntervalMs WRITE setRefreshIntervalMs NOTIFY refreshIntervalMsChanged)
     Q_PROPERTY(bool autoRefresh READ autoRefresh WRITE setAutoRefresh NOTIFY autoRefreshChanged)
+    Q_PROPERTY(int refreshIntervalMs READ refreshIntervalMs WRITE setRefreshIntervalMs NOTIFY refreshIntervalMsChanged)
 
 public:
     enum Roles {
@@ -59,13 +59,13 @@ public:
     bool isLoadingPage() const { return m_isLoadingPage; }
     bool useCursor() const { return m_useCursor; }
     QString nextUrl() const { return m_nextUrl; }
-    int refreshIntervalMs() const { return m_refreshIntervalMs; }
     bool autoRefresh() const { return m_autoRefresh; }
+    int refreshIntervalMs() const { return m_refreshIntervalMs; }
 
     void setPerPage(int perPage);
     void setUseCursor(bool useCursor);
+    void setAutoRefresh(bool autoRefresh);
     void setRefreshIntervalMs(int ms);
-    void setAutoRefresh(bool enabled);
 
     Q_INVOKABLE void search(const QString &query);
     Q_INVOKABLE void loadMore();
@@ -80,15 +80,14 @@ signals:
     void isLoadingPageChanged();
     void useCursorChanged();
     void nextUrlChanged();
-    void refreshIntervalMsChanged();
     void autoRefreshChanged();
+    void refreshIntervalMsChanged();
 
 private slots:
     void onSearchResultsPageReady(const QList<Repository*> &repositories, int page, int totalCount);
     void onSearchResultsCursorReady(const QList<Repository*> &repositories,
                                     const QString &nextUrl, bool isFirstPage);
-    void onRefreshTimer();
-    void onIsNewClearTimer();
+    void onRefreshTick();
 
 private:
     void setIsLoadingPage(bool loading);
@@ -96,7 +95,12 @@ private:
     void setNextUrl(const QString &url);
     void appendBatch(const QList<Repository*> &batch);
     void resetWith(const QList<Repository*> &batch);
+
+    // Live-update merge: reconcile the model in place against a freshly fetched
+    // page 1, keyed by stable GitHub repo id. Inserts/removes/updates emit the
+    // narrow model signals so scroll position and unaffected rows are preserved.
     void applyDiff(const QList<Repository*> &incoming);
+    void markNew(int row);
 
     GitHubService *m_service;
     QList<Repository*> m_repos;
@@ -107,12 +111,13 @@ private:
     bool m_isLoadingPage = false;
     bool m_useCursor = false;
     QString m_nextUrl;
-    QTimer m_refreshTimer;
-    QTimer m_isNewClearTimer;
-    int m_refreshIntervalMs = 60000;
+
     bool m_autoRefresh = false;
-    bool m_isRefreshing = false;
-    QSet<int> m_newIds;
+    int m_refreshIntervalMs = 60000;
+    bool m_refreshing = false; // true while a timer-driven page-1 fetch is in flight
+    QTimer m_refreshTimer;
+    QSet<int> m_newRows;       // rows currently flagged "is new" for the highlight cue
+    QTimer m_clearNewTimer;
 };
 
 #endif // REPOSITORYLISTMODEL_H

@@ -14,13 +14,13 @@ Rectangle {
     width: ListView.view ? ListView.view.width : implicitWidth
     implicitWidth: 400
     implicitHeight: layout.implicitHeight + 16
-    // Soft yellow when the item was just inserted; fades back to white when isNew clears.
+    // Freshly-merged rows briefly flash yellow, then fade back to white.
     color: root.isNew ? "#FEF9C3" : "#FFFFFF"
     border.color: "#E5E7EB"
     radius: 4
 
     Behavior on color {
-        ColorAnimation { duration: 600 }
+        ColorAnimation { duration: 800 }
     }
 
     ColumnLayout {

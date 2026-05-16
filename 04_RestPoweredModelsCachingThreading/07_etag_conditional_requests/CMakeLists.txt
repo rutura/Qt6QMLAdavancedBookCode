@@ -16,7 +16,6 @@ set(QML_FILES
     qml/Main.qml
     qml/pages/RepositoryListPage.qml
     qml/components/RepoDelegate.qml
-    qml/components/TokenSettings.qml
 )
 
 qt_add_executable(RepoExplorerPro

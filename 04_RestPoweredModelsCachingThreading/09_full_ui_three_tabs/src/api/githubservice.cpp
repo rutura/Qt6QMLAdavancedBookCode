@@ -6,14 +6,82 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QtConcurrent>
 #include <QFutureWatcher>
-#include <QElapsedTimer>
 
 GitHubService::GitHubService(QObject *parent)
     : QObject(parent)
     , m_networkManager(new QNetworkAccessManager(this))
 {
+}
+
+void GitHubService::beginParse()
+{
+    if (m_inflightParses++ == 0)
+        emit isParsingChanged();
+}
+
+void GitHubService::endParse()
+{
+    if (--m_inflightParses == 0)
+        emit isParsingChanged();
+}
+
+void GitHubService::updateRateLimit(QNetworkReply *reply)
+{
+    bool changed = false;
+
+    const QByteArray remaining = reply->rawHeader("X-RateLimit-Remaining");
+    if (!remaining.isEmpty()) {
+        m_rateLimitRemaining = remaining.toInt();
+        changed = true;
+    }
+    const QByteArray total = reply->rawHeader("X-RateLimit-Limit");
+    if (!total.isEmpty()) {
+        m_rateLimitTotal = total.toInt();
+        changed = true;
+    }
+    const QByteArray reset = reply->rawHeader("X-RateLimit-Reset");
+    if (!reset.isEmpty()) {
+        m_rateLimitReset = QDateTime::fromSecsSinceEpoch(reset.toLongLong());
+        changed = true;
+    }
+
+    if (changed)
+        emit rateLimitChanged();
+}
+
+void GitHubService::parseBytesAsync(const QByteArray &body,
+                                    std::function<void(const QList<Repository*> &, int)> onParsed)
+{
+    beginParse();
+
+    auto *watcher = new QFutureWatcher<QList<Repository*>>(this);
+
+    // The shared total-count needs to survive past the lambda that produces the list,
+    // so it is captured into a heap cell the watcher owns for its lifetime.
+    auto *total = new int(0);
+
+    connect(watcher, &QFutureWatcher<QList<Repository*>>::finished, this,
+            [this, watcher, total, onParsed]() {
+        const QList<Repository*> repos = watcher->result();
+        const int totalCount = *total;
+        delete total;
+        watcher->deleteLater();
+        endParse();
+        onParsed(repos, totalCount);
+    });
+
+    QFuture<QList<Repository*>> future = QtConcurrent::run([body, total]() {
+        QElapsedTimer timer;
+        timer.start();
+        QList<Repository*> repos = Repository::listFromJsonBytes(body, total);
+        qDebug() << "[parse] off-GUI-thread parse of" << body.size()
+                 << "bytes ->" << repos.size() << "repos in" << timer.elapsed() << "ms";
+        return repos;
+    });
+    watcher->setFuture(future);
 }
 
 void GitHubService::setCache(CacheManager *cache)
@@ -49,9 +117,11 @@ QList<Repository*> GitHubService::parseSearchItems(const QByteArray &body, int *
 
 void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, const QByteArray &etag, bool found)
 {
-    // Stash the etag for conditional requests on next network call.
+    // Remember the ETag so the in-flight request for this URL can attach
+    // If-None-Match. The network request was issued before the cache replied,
+    // so the conditional header is set there from this same store on the next call.
     if (found && !etag.isEmpty())
-        m_etagByUrl.insert(key, QString::fromUtf8(etag));
+        m_etagByUrl.insert(key, etag);
 
     auto it = m_pendingByKey.find(key);
     if (it == m_pendingByKey.end())
@@ -79,18 +149,6 @@ void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, co
     }
 }
 
-
-void GitHubService::parseRateLimitHeaders(QNetworkReply *reply)
-{
-    const int remaining = reply->rawHeader("X-RateLimit-Remaining").toInt();
-    const int total = reply->rawHeader("X-RateLimit-Limit").toInt();
-    const qint64 resetEpoch = reply->rawHeader("X-RateLimit-Reset").toLongLong();
-
-    if (m_rateLimitRemaining != remaining) { m_rateLimitRemaining = remaining; emit rateLimitRemainingChanged(); }
-    if (m_rateLimitTotal != total)         { m_rateLimitTotal = total;         emit rateLimitTotalChanged(); }
-    const QDateTime resetDt = resetEpoch > 0 ? QDateTime::fromSecsSinceEpoch(resetEpoch) : QDateTime{};
-    if (m_rateLimitReset != resetDt)       { m_rateLimitReset = resetDt;       emit rateLimitResetChanged(); }
-}
 
 void GitHubService::setAuthToken(const QString &token)
 {
@@ -261,12 +319,17 @@ void GitHubService::searchRepositoriesPage(const QString &query, int page, int p
     request.setRawHeader("User-Agent", "RepoExplorerPro-Qt");
     request.setRawHeader("Accept", "application/vnd.github+json");
 
-    if (!m_authToken.isEmpty())
+    if (!m_authToken.isEmpty()) {
         request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
+    }
 
-    const QString cachedEtag = m_etagByUrl.value(url.toString());
-    if (!cachedEtag.isEmpty())
-        request.setRawHeader("If-None-Match", cachedEtag.toUtf8());
+    // m_etagByUrl is seeded by onCacheLoaded from a prior network save (this session
+    // or a previous run — cache files are persisted on disk). When present, the
+    // conditional request lets GitHub answer 304 and not spend our rate budget on a body.
+    const auto etagIt = m_etagByUrl.constFind(url.toString());
+    if (etagIt != m_etagByUrl.constEnd() && !etagIt.value().isEmpty()) {
+        request.setRawHeader("If-None-Match", etagIt.value());
+    }
 
     QNetworkReply *reply = m_networkManager->get(request);
     reply->setProperty("requestType", "searchRepositoriesPage");
@@ -287,17 +350,17 @@ void GitHubService::onSearchResultsPageReceived()
     }
 
     setIsLoading(false);
-    parseRateLimitHeaders(reply);
-
-    const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    updateRateLimit(reply);
 
     if (reply->error() != QNetworkReply::NoError) {
         reply->deleteLater();
         return;
     }
 
-    // 304 Not Modified — cache is still valid; stale data already served via cachedPageReady.
-    if (httpStatus == 304) {
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (status == 304) {
+        // Not Modified: the cached body the model already rendered is still current.
+        // No parse, no signal — deliberately no row churn.
         reply->deleteLater();
         return;
     }
@@ -308,42 +371,19 @@ void GitHubService::onSearchResultsPageReceived()
     const QByteArray data = reply->readAll();
     reply->deleteLater();
 
-    if (!etag.isEmpty())
-        m_etagByUrl.insert(cacheKey, QString::fromUtf8(etag));
-
-    if (m_cache && !data.isEmpty())
+    if (m_cache && !data.isEmpty()) {
         m_cache->requestSave(cacheKey, data, etag);
-
-    // Extract total_count synchronously (single int field, negligible cost).
-    int totalCount = 0;
-    {
-        QJsonDocument doc = QJsonDocument::fromJson(data);
-        if (doc.isObject())
-            totalCount = doc.object().value("total_count").toInt();
+        if (!etag.isEmpty())
+            m_etagByUrl.insert(cacheKey, etag);
     }
 
-    m_inflightParses++;
-    if (m_inflightParses == 1)
-        emit isParsingChanged();
-
-    QElapsedTimer timer;
-    timer.start();
-
-    auto *watcher = new QFutureWatcher<QList<Repository*>>(this);
-    const int pageCopy = page;
-    const int totalCopy = totalCount;
-    connect(watcher, &QFutureWatcher<QList<Repository*>>::finished, this,
-            [this, watcher, pageCopy, totalCopy, timer]() mutable {
-                qDebug() << "Page JSON parse:" << timer.elapsed() << "ms,"
-                         << watcher->result().size() << "items";
-                if (--m_inflightParses == 0)
-                    emit isParsingChanged();
-                emit searchResultsPageReady(watcher->result(), pageCopy, totalCopy);
-                watcher->deleteLater();
-            });
-    watcher->setFuture(QtConcurrent::run([data]() {
-        return Repository::listFromJsonBytes(data);
-    }));
+    parseBytesAsync(data, [this, page](const QList<Repository*> &repos, int totalCount) {
+        if (repos.isEmpty() && totalCount == 0) {
+            setErrorMessage("JSON parse error on paged search response");
+            return;
+        }
+        emit searchResultsPageReady(repos, page, totalCount);
+    });
 }
 
 void GitHubService::searchRepositoriesCursor(const QString &query, int perPage,
@@ -371,12 +411,14 @@ void GitHubService::searchRepositoriesCursor(const QString &query, int perPage,
     request.setRawHeader("User-Agent", "RepoExplorerPro-Qt");
     request.setRawHeader("Accept", "application/vnd.github+json");
 
-    if (!m_authToken.isEmpty())
+    if (!m_authToken.isEmpty()) {
         request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
+    }
 
-    const QString cachedEtag0 = m_etagByUrl.value(url.toString());
-    if (!cachedEtag0.isEmpty())
-        request.setRawHeader("If-None-Match", cachedEtag0.toUtf8());
+    const auto etagIt = m_etagByUrl.constFind(url.toString());
+    if (etagIt != m_etagByUrl.constEnd() && !etagIt.value().isEmpty()) {
+        request.setRawHeader("If-None-Match", etagIt.value());
+    }
 
     QNetworkReply *reply = m_networkManager->get(request);
     reply->setProperty("requestType", "searchRepositoriesCursor");
@@ -407,12 +449,14 @@ void GitHubService::fetchByUrl(const QUrl &url)
     request.setRawHeader("User-Agent", "RepoExplorerPro-Qt");
     request.setRawHeader("Accept", "application/vnd.github+json");
 
-    if (!m_authToken.isEmpty())
+    if (!m_authToken.isEmpty()) {
         request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
+    }
 
-    const QString cachedEtag1 = m_etagByUrl.value(url.toString());
-    if (!cachedEtag1.isEmpty())
-        request.setRawHeader("If-None-Match", cachedEtag1.toUtf8());
+    const auto etagIt = m_etagByUrl.constFind(url.toString());
+    if (etagIt != m_etagByUrl.constEnd() && !etagIt.value().isEmpty()) {
+        request.setRawHeader("If-None-Match", etagIt.value());
+    }
 
     QNetworkReply *reply = m_networkManager->get(request);
     reply->setProperty("requestType", "searchRepositoriesCursor");
@@ -450,17 +494,15 @@ void GitHubService::onSearchResultsCursorReceived()
     }
 
     setIsLoading(false);
-    parseRateLimitHeaders(reply);
-
-    const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    updateRateLimit(reply);
 
     if (reply->error() != QNetworkReply::NoError) {
         reply->deleteLater();
         return;
     }
 
-    // 304 Not Modified — cache is still valid; stale data already served via cachedCursorReady.
-    if (httpStatus == 304) {
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (status == 304) {
         reply->deleteLater();
         return;
     }
@@ -473,32 +515,16 @@ void GitHubService::onSearchResultsCursorReceived()
     const QByteArray data = reply->readAll();
     reply->deleteLater();
 
-    if (!etag.isEmpty())
-        m_etagByUrl.insert(cacheKey, QString::fromUtf8(etag));
-
-    if (m_cache && !data.isEmpty())
+    if (m_cache && !data.isEmpty()) {
         m_cache->requestSave(cacheKey, data, etag);
+        if (!etag.isEmpty())
+            m_etagByUrl.insert(cacheKey, etag);
+    }
 
-    m_inflightParses++;
-    if (m_inflightParses == 1)
-        emit isParsingChanged();
-
-    QElapsedTimer timer;
-    timer.start();
-
-    auto *watcher = new QFutureWatcher<QList<Repository*>>(this);
-    connect(watcher, &QFutureWatcher<QList<Repository*>>::finished, this,
-            [this, watcher, nextUrl, isFirstPage, timer]() mutable {
-                qDebug() << "Cursor JSON parse:" << timer.elapsed() << "ms,"
-                         << watcher->result().size() << "items";
-                if (--m_inflightParses == 0)
-                    emit isParsingChanged();
-                emit searchResultsCursorReady(watcher->result(), nextUrl, isFirstPage);
-                watcher->deleteLater();
-            });
-    watcher->setFuture(QtConcurrent::run([data]() {
-        return Repository::listFromJsonBytes(data);
-    }));
+    parseBytesAsync(data, [this, nextUrl, isFirstPage](const QList<Repository*> &repos, int totalCount) {
+        Q_UNUSED(totalCount);
+        emit searchResultsCursorReady(repos, nextUrl, isFirstPage);
+    });
 }
 
 void GitHubService::clearRepositories()
@@ -675,8 +701,20 @@ void GitHubService::onRequestFailed(QNetworkReply::NetworkError error)
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
     setIsLoading(false);
 
+    // GitHub returns {"message": "...", "documentation_url": "..."} in the response
+    // body even for error status codes (403, 429, etc.), so prefer that over generic Qt descriptions.
+    QString githubMessage;
+    if (reply) {
+        const QByteArray body = reply->readAll();
+        const QJsonDocument doc = QJsonDocument::fromJson(body);
+        if (doc.isObject())
+            githubMessage = doc.object()["message"].toString();
+    }
+
     QString errorMsg;
-    switch (error) {
+    if (!githubMessage.isEmpty()) {
+        errorMsg = githubMessage;
+    } else switch (error) {
     case QNetworkReply::AuthenticationRequiredError:
         errorMsg = "Authentication required. Please check your token.";
         break;

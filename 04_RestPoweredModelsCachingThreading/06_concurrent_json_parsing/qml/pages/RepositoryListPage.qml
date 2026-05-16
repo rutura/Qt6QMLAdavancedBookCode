@@ -64,7 +64,7 @@ Item {
             Label {
                 visible: repoModel.service.isParsing
                 text: "parsing…"
-                color: "#9333EA"
+                color: "#2563EB"
                 font.italic: true
             }
             Item { Layout.fillWidth: true }

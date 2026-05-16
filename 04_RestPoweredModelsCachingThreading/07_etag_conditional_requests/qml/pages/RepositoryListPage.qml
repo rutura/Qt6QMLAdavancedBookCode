@@ -18,6 +18,21 @@ Item {
         anchors.margins: 16
         spacing: 12
 
+        Label {
+            Layout.fillWidth: true
+            visible: repoModel.service.rateLimitRemaining >= 0
+            text: {
+                const r = repoModel.service.rateLimitRemaining
+                const t = repoModel.service.rateLimitTotal
+                const reset = repoModel.service.rateLimitReset
+                const resetStr = isNaN(reset.getTime()) ? "" :
+                    (" · resets " + Qt.formatTime(reset, "hh:mm"))
+                return "rate limit: " + r + " / " + t + " remaining" + resetStr
+            }
+            color: repoModel.service.rateLimitRemaining <= 5 ? "#B91C1C" : "#6B7280"
+            font.pixelSize: 12
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
@@ -64,25 +79,10 @@ Item {
             Label {
                 visible: repoModel.service.isParsing
                 text: "parsing…"
-                color: "#9333EA"
+                color: "#2563EB"
                 font.italic: true
             }
             Item { Layout.fillWidth: true }
-        }
-
-        // Rate limit status — hidden until we've received at least one response.
-        Label {
-            Layout.fillWidth: true
-            visible: repoModel.service.rateLimitTotal > 0
-            text: {
-                const rem = repoModel.service.rateLimitRemaining
-                const tot = repoModel.service.rateLimitTotal
-                const reset = repoModel.service.rateLimitReset
-                const resetStr = reset.toLocaleTimeString(Qt.locale(), "HH:mm")
-                return "rate limit: " + rem + "/" + tot + ", resets at " + resetStr
-            }
-            color: repoModel.service.rateLimitRemaining < 10 ? "#B45309" : "#6B7280"
-            font.pixelSize: 11
         }
 
         Label {
@@ -91,16 +91,30 @@ Item {
             text: {
                 const msg = repoModel.service.errorMessage
                 if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
-                    return msg + "\n\nTip: enter a GitHub PAT in the token field below to raise your limit to 30 requests/minute, or wait for the limit to reset."
+                    return msg + "\n\nTip: enter a GitHub PAT in the field below to raise your limit to 30 requests/minute, or wait for the limit to reset."
                 return msg
             }
             color: "#B91C1C"
             wrapMode: Text.WordWrap
         }
 
-        TokenSettings {
+        RowLayout {
             Layout.fillWidth: true
-            service: repoModel.service
+            spacing: 8
+
+            Label {
+                text: "GitHub PAT:"
+                color: "#6B7280"
+                font.pixelSize: 12
+            }
+
+            TextField {
+                Layout.fillWidth: true
+                placeholderText: "ghp_… (optional — raises rate limit from 10 to 30 req/min)"
+                echoMode: TextInput.Password
+                text: repoModel.service.authToken
+                onTextChanged: repoModel.service.authToken = text
+            }
         }
 
         ListView {
