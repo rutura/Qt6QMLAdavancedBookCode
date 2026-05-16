@@ -3,11 +3,12 @@
 #
 # Usage:
 #   .\build_and_install.ps1 [-QtCMake <path>]
-$ErrorActionPreference = "Stop"
 
 param(
     [string]$QtCMake = "$env:USERPROFILE\Qt\6.11.1\msvc2022_64\bin\qt-cmake.bat"
 )
+
+$ErrorActionPreference = "Stop"
 
 $Here          = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SectionRoot   = Resolve-Path (Join-Path $Here "..\..")

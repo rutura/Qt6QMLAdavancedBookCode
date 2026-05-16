@@ -14,7 +14,7 @@ demonstrating the full lifecycle of a Qt 6 QML module:
 3. **List property** — `QQmlListProperty` for child-element syntax + Repeater model
 4. **Default property** — `Q_CLASSINFO("DefaultProperty", ...)` on a `QQuickItem`
 5. **Grouped properties** — sub-objects (validation, style) on an element
-6. **Attached properties** — `QML_ATTACHED` + `QML_UNCREATABLE` pattern
+6. **Attached properties** — `QML_ATTACHED` on `Form` + `QML_ANONYMOUS` attached object
 7. **Property value source** — `QQmlPropertyValueSource` + `Pulse on opacity {}`
 8. **Singleton services** — `ToastManager` (QML_SINGLETON) + `UndoStack` (QML_ELEMENT)
 9. **Packaging** — CMake install rules, `find_package` support, config helpers
@@ -26,7 +26,8 @@ demonstrating the full lifecycle of a Qt 6 QML module:
 - `QML_SINGLETON` types use a public default constructor (Qt calls it automatically)
 - `UndoStack` is instantiable (not singleton) so multiple stacks can coexist
 - `ToastHost.qml` decouples rendering from the `ToastManager` API
-- No shell scripts; cross-platform build verified on Linux and Windows
+- Section 09 ships both `build_and_install.sh` and `build_and_install.ps1`
+  so the `find_package` consumer can be reproduced on Linux and Windows
 - CMake target name: `QmlAdvCore`; plugin: `QmlAdvCoreplugin`; URI: `QmlAdvCore`
 
 ## Build command (any section)
