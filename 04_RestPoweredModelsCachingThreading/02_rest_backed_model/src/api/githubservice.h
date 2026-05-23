@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QVariantList>
 #include <QList>          // NEW
 #include <qqml.h>
 
