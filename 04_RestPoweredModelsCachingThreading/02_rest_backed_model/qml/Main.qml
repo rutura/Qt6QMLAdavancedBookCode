@@ -18,10 +18,6 @@ ApplicationWindow {
     color: Theme.background
     Behavior on color { ColorAnimation { duration: Theme.normalAnimation } }
 
-    GitHubService {
-        id: gitHubService
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
