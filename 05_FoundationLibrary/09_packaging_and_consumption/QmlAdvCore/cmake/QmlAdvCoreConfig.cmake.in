@@ -1,0 +1,45 @@
+@PACKAGE_INIT@
+
+# Snapshot our own package paths BEFORE find_dependency(Qt6),
+# because Qt6Config.cmake also calls @PACKAGE_INIT@ and overwrites
+# PACKAGE_PREFIX_DIR. set_and_check() can't be used here for the same
+# reason — the @PACKAGE_xxx@ tokens are expanded once at install time
+# using OUR PACKAGE_PREFIX_DIR, but EXISTS checks must happen against
+# absolute paths, which we hold onto in local variables.
+set(_QmlAdvCore_lib_dir "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
+set(_QmlAdvCore_inc_dir "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/QmlAdvCore")
+
+include(CMakeFindDependencyMacro)
+find_dependency(Qt6 REQUIRED COMPONENTS Quick)
+
+if(NOT EXISTS "${_QmlAdvCore_lib_dir}")
+    message(FATAL_ERROR
+        "QmlAdvCore: library dir not found at ${_QmlAdvCore_lib_dir}")
+endif()
+if(NOT EXISTS "${_QmlAdvCore_inc_dir}")
+    message(FATAL_ERROR
+        "QmlAdvCore: include dir not found at ${_QmlAdvCore_inc_dir}")
+endif()
+
+# Backing library target
+if(NOT TARGET QmlAdvCore::QmlAdvCore)
+    add_library(QmlAdvCore::QmlAdvCore STATIC IMPORTED)
+    set_target_properties(QmlAdvCore::QmlAdvCore PROPERTIES
+        IMPORTED_LOCATION
+            "${_QmlAdvCore_lib_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}QmlAdvCore${CMAKE_STATIC_LIBRARY_SUFFIX}"
+        INTERFACE_INCLUDE_DIRECTORIES "${_QmlAdvCore_inc_dir}"
+        INTERFACE_LINK_LIBRARIES "Qt6::Quick"
+    )
+endif()
+
+# QML plugin target — must also be linked to register QML types at runtime
+if(NOT TARGET QmlAdvCore::QmlAdvCoreplugin)
+    add_library(QmlAdvCore::QmlAdvCoreplugin STATIC IMPORTED)
+    set_target_properties(QmlAdvCore::QmlAdvCoreplugin PROPERTIES
+        IMPORTED_LOCATION
+            "${_QmlAdvCore_lib_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}QmlAdvCoreplugin${CMAKE_STATIC_LIBRARY_SUFFIX}"
+        INTERFACE_LINK_LIBRARIES "QmlAdvCore::QmlAdvCore"
+    )
+endif()
+
+check_required_components(QmlAdvCore)
