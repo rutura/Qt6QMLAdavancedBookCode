@@ -74,7 +74,6 @@ ApplicationWindow {
             currentIndex: tabBar.currentIndex
 
             RepositoryListPage {
-                gitHubService: gitHubService
             }
 
             Item {

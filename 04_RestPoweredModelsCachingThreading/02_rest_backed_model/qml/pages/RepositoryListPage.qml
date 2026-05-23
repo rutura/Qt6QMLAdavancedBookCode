@@ -7,8 +7,6 @@ import RepoExplorerProApp
 Item {
     id: root
 
-    required property var gitHubService
-
     // NEW: the model that now drives this page
     RepositoryListModel {
         id: repoModel
