@@ -1,4 +1,5 @@
 #include "githubservice.h"
+#include "repository.h"     // NEW
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -308,16 +309,15 @@ void GitHubService::onSearchResultsReceived()
 
     QJsonObject searchResults = doc.object();
     QJsonArray items = searchResults["items"].toArray();
-    QVariantList repoList;
+    QList<Repository*> typedList;
 
     for (const QJsonValue &value : items) {
         if (value.isObject()) {
-            repoList.append(parseRepositoryJson(value.toObject()));
+            const QJsonObject obj = value.toObject();
+            typedList.append(Repository::fromJson(obj, nullptr));
         }
     }
-
-    m_repositories = repoList;
-    emit repositoriesChanged();
+    emit searchResultsReady(typedList);
     reply->deleteLater();
 }
 

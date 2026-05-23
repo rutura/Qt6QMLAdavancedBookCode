@@ -57,12 +57,15 @@ qt_add_qml_module(RepoExplorerPro
         src/repository.cpp
         src/api/githubservice.h
         src/api/githubservice.cpp
+        src/models/repositorylistmodel.h
+        src/models/repositorylistmodel.cpp
 )
 
 target_include_directories(RepoExplorerPro
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/api
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/models
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

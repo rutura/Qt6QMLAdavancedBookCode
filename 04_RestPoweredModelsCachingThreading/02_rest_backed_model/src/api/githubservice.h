@@ -5,7 +5,10 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QVariantList>
+#include <QList>          // NEW
 #include <qqml.h>
+
+class Repository;          // NEW: forward declaration
 
 class GitHubService : public QObject
 {
@@ -39,6 +42,10 @@ signals:
     void errorMessageChanged();
     void repositoriesChanged();
     void repositoryFetched(const QVariant &repository);
+
+    // NEW: Raw-typed signal consumed by the new RepositoryListModel.
+    // The Repository* objects emitted have no parent. The receiver takes ownership.
+    void searchResultsReady(const QList<Repository*> &repositories);
 
 private slots:
     void onUserRepositoriesReceived();

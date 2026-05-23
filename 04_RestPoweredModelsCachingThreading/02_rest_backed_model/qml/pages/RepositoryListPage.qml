@@ -9,6 +9,11 @@ Item {
 
     required property var gitHubService
 
+    // NEW: the model that now drives this page
+    RepositoryListModel {
+        id: repoModel
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -27,8 +32,8 @@ Item {
             AccentButton {
                 id: searchButton
                 text: "Search"
-                enabled: !root.gitHubService.isLoading && queryField.text.length > 0
-                onClicked: root.gitHubService.searchRepositories(queryField.text)
+                enabled: !repoModel.service.isLoading && queryField.text.length > 0   // CHANGED
+                onClicked: repoModel.search(queryField.text)                          // CHANGED
             }
 
             ThemeToggle {}
@@ -42,21 +47,22 @@ Item {
 
             StatusStrip {
                 Layout.fillWidth: true
-                busy: root.gitHubService.isLoading
-                statusText: root.gitHubService.isLoading
+                busy: repoModel.service.isLoading                                  // CHANGED
+                statusText: repoModel.service.isLoading                            // CHANGED
                             ? "Loading…"
-                            : root.gitHubService.repositories.length + " repositories"
+                            : repoModel.count + " repositories"                    // CHANGED
 
                 TokenField {
-                    service: root.gitHubService
+                    service: repoModel.service                                     // CHANGED
                 }
             }
 
             Label {
+
                 Layout.fillWidth: true
-                visible: root.gitHubService.errorMessage.length > 0
+                visible: repoModel.service.errorMessage.length > 0                 // CHANGED
                 text: {
-                    const msg = root.gitHubService.errorMessage
+                    const msg = repoModel.service.errorMessage                     // CHANGED
                     if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
                         return msg + "\n\nTip: add a GitHub token above to raise your rate limit, or wait for it to reset."
                     return msg
@@ -69,18 +75,16 @@ Item {
             ListContainer {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: root.gitHubService.repositories
+                model: repoModel                                  // CHANGED: the model, not a QVariantList
 
                 delegate: RepoCard {
-                    required property var modelData
+                    required property var model                   // CHANGED: model, not modelData
                     width: ListView.view ? ListView.view.width : implicitWidth
-                    fullName: modelData.fullName
-                    description: modelData.description
-                    stargazersCount: modelData.stargazersCount
-                    forksCount: modelData.forksCount
-                    language: modelData.language
-                    isPrivate: modelData.isPrivate
-                    updatedAt: modelData.updatedAt
+                    fullName: model.fullName                      // CHANGED
+                    description: model.description                 // CHANGED
+                    stargazersCount: model.stargazersCount         // CHANGED
+                    forksCount: model.forksCount                   // CHANGED
+                    language: model.language                       // CHANGED
                 }
             }
         }
@@ -88,9 +92,9 @@ Item {
 
     EmptyState {
         anchors.centerIn: parent
-        visible: !root.gitHubService.isLoading
-                 && root.gitHubService.repositories.length === 0
-                 && root.gitHubService.errorMessage.length === 0
+        visible: !repoModel.service.isLoading
+                 && repoModel.count === 0                                  // CHANGED
+                 && repoModel.service.errorMessage.length === 0            // CHANGED
         glyph: "🔍"
         title: "Search GitHub"
         subtitle: "Type a query and hit Search to explore repositories"
