@@ -6,11 +6,6 @@ RepositoryListModel::RepositoryListModel(QObject *parent)
     : QAbstractListModel(parent)
     , m_service(new GitHubService(this))
 {
-    /*
-    connect(m_service, &GitHubService::searchResultsReady,
-            this, &RepositoryListModel::onSearchResultsReady);
-    */
-
     connect(m_service, &GitHubService::searchResultsPageReady,           // CHANGED
             this, &RepositoryListModel::onSearchResultsPageReady);       // CHANGED
 }
@@ -81,10 +76,6 @@ QHash<int, QByteArray> RepositoryListModel::roleNames() const
 
 void RepositoryListModel::search(const QString &query)
 {
-    /*
-    m_service->searchRepositories(query);
-    */
-
     if (query.isEmpty() || m_isLoadingPage)
         return;
 
@@ -106,13 +97,6 @@ void RepositoryListModel::loadMore()
     const int nextPage = m_currentPage + 1;
     m_service->searchRepositoriesPage(m_currentQuery, nextPage, m_perPage);
 }
-
-/*
-void RepositoryListModel::onSearchResultsReady(const QList<Repository*> &repositories)
-{
-    resetWith(repositories);
-}
-*/
 
 void RepositoryListModel::onSearchResultsPageReady(const QList<Repository*> &repositories, int page, int totalCount)
 {
