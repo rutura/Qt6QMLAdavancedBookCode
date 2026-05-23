@@ -18,6 +18,25 @@ set(PROJECT_SOURCES
 # We will need to move the QML file Qt Creator generated .
 set(QML_FILES
     qml/Main.qml
+    qml/pages/RepositoryListPage.qml
+    qml/components/ThemeToggle.qml
+    qml/components/AppHeader.qml
+    qml/components/SearchField.qml
+    qml/components/AccentButton.qml
+    qml/components/PillBadge.qml
+    qml/components/TokenField.qml
+    qml/components/RepoCard.qml
+    qml/components/StatusStrip.qml
+    qml/components/ListContainer.qml
+    qml/components/EmptyState.qml
+    qml/components/LoadingOverlay.qml
+)
+
+# Theme.qml is a QML singleton (it starts with `pragma Singleton`). This
+# property makes Qt generate the qmldir entry for it automatically, so we
+# don't hand-write a qmldir file.
+set_source_files_properties(qml/components/Theme.qml PROPERTIES
+    QT_QML_SINGLETON_TYPE TRUE
 )
 
 qt_add_executable(RepoExplorerPro
@@ -29,6 +48,7 @@ qt_add_qml_module(RepoExplorerPro
     VERSION 1.0
     QML_FILES
         ${QML_FILES}
+        qml/components/Theme.qml
 
     SOURCES
         src/user.h

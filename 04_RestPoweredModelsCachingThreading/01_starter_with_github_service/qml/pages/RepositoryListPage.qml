@@ -9,10 +9,6 @@ Item {
 
     required property var gitHubService
 
-    RepositoryListModel {
-        id: repoModel
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -31,8 +27,8 @@ Item {
             AccentButton {
                 id: searchButton
                 text: "Search"
-                enabled: !repoModel.isLoadingPage && queryField.text.length > 0
-                onClicked: repoModel.search(queryField.text)
+                enabled: !root.gitHubService.isLoading && queryField.text.length > 0
+                onClicked: root.gitHubService.searchRepositories(queryField.text)
             }
 
             ThemeToggle {}
@@ -46,20 +42,21 @@ Item {
 
             StatusStrip {
                 Layout.fillWidth: true
-                busy: repoModel.isLoadingPage
-                statusText: repoModel.count + " of " + repoModel.totalCount
-                            + "  ·  page " + repoModel.currentPage
+                busy: root.gitHubService.isLoading
+                statusText: root.gitHubService.isLoading
+                            ? "Loading…"
+                            : root.gitHubService.repositories.length + " repositories"
 
                 TokenField {
-                    service: repoModel.service
+                    service: root.gitHubService
                 }
             }
 
             Label {
                 Layout.fillWidth: true
-                visible: repoModel.service.errorMessage.length > 0
+                visible: root.gitHubService.errorMessage.length > 0
                 text: {
-                    const msg = repoModel.service.errorMessage
+                    const msg = root.gitHubService.errorMessage
                     if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
                         return msg + "\n\nTip: add a GitHub token above to raise your rate limit, or wait for it to reset."
                     return msg
@@ -72,33 +69,28 @@ Item {
             ListContainer {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: repoModel
+                model: root.gitHubService.repositories
 
                 delegate: RepoCard {
-                    required property var model
+                    required property var modelData
                     width: ListView.view ? ListView.view.width : implicitWidth
-                    fullName: model.fullName
-                    description: model.description
-                    stargazersCount: model.stargazersCount
-                    forksCount: model.forksCount
-                    language: model.language
+                    fullName: modelData.fullName
+                    description: modelData.description
+                    stargazersCount: modelData.stargazersCount
+                    forksCount: modelData.forksCount
+                    language: modelData.language
+                    isPrivate: modelData.isPrivate
+                    updatedAt: modelData.updatedAt
                 }
-            }
-
-            AccentButton {
-                Layout.alignment: Qt.AlignHCenter
-                text: repoModel.isLoadingPage ? "Loading…" : "Load more"
-                enabled: repoModel.hasMore && !repoModel.isLoadingPage
-                onClicked: repoModel.loadMore()
             }
         }
     }
 
     EmptyState {
         anchors.centerIn: parent
-        visible: !repoModel.isLoadingPage
-                 && repoModel.count === 0
-                 && repoModel.service.errorMessage.length === 0
+        visible: !root.gitHubService.isLoading
+                 && root.gitHubService.repositories.length === 0
+                 && root.gitHubService.errorMessage.length === 0
         glyph: "🔍"
         title: "Search GitHub"
         subtitle: "Type a query and hit Search to explore repositories"
