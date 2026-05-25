@@ -46,15 +46,17 @@ Item {
             StatusStrip {
                 Layout.fillWidth: true
                 busy: repoModel.isLoadingPage
-                /*
-                statusText: repoModel.count + " of " + repoModel.totalCount
-                            + "  ·  page " + repoModel.currentPage
-                */
                 statusText: repoModel.useCursor                                       // CHANGED
                                 ? (repoModel.count + " loaded · "
                                    + (repoModel.hasMore ? "more available" : "end of results"))
                                 : (repoModel.count + " of " + repoModel.totalCount
                                    + "  ·  page " + repoModel.currentPage)
+                // NEW: honest "parsing…" indicator, distinct from the fetch spinner
+                PillBadge {
+                    visible: repoModel.service.isParsing
+                    text: "parsing…"
+                    pillColor: Theme.info
+                }
 
                 ComboBox {                                                            // NEW
                     id: modeCombo

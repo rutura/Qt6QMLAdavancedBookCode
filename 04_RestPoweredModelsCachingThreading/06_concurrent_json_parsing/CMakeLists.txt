@@ -5,7 +5,7 @@ project(RepoExplorerPro VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network Concurrent)
 
 
 qt_standard_project_setup(REQUIRES 6.10)
@@ -95,6 +95,7 @@ target_link_libraries(RepoExplorerPro
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Network
+    Qt6::Concurrent
 )
 
 install(TARGETS RepoExplorerPro

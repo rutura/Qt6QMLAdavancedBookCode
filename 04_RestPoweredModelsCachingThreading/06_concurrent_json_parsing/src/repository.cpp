@@ -1,5 +1,7 @@
 #include "repository.h"
 #include "user.h"
+#include <QJsonDocument>     // NEW
+#include <QJsonArray>        // NEW
 
 Repository::Repository(QObject *parent)
     : QObject(parent)
@@ -121,4 +123,26 @@ Repository* Repository::fromJson(const QJsonObject &json, QObject *parent)
     }
 
     return repo;
+}
+
+QList<Repository*> Repository::listFromJsonBytes(const QByteArray &bytes, int *totalCountOut)
+{
+    QList<Repository*> result;
+
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+        return result;
+
+    const QJsonObject root = doc.object();
+    if (totalCountOut)
+        *totalCountOut = root.value("total_count").toInt();
+
+    const QJsonArray items = root.value("items").toArray();
+    result.reserve(items.size());
+    for (const QJsonValue &value : items) {
+        if (value.isObject())
+            result.append(Repository::fromJson(value.toObject(), nullptr));
+    }
+    return result;
 }

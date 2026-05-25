@@ -5,6 +5,8 @@
 #include <QString>
 #include <QDateTime>
 #include <QJsonObject>
+#include <QByteArray>     // NEW
+#include <QList>          // NEW
 #include <qqml.h>
 
 class Repository : public QObject
@@ -52,6 +54,10 @@ public:
     void setOwner(QObject *owner);
 
     static Repository* fromJson(const QJsonObject &json, QObject *parent = nullptr);
+    // NEW: Parses a /search/repositories response body into detached Repository objects.
+    // Designed to run on a worker thread (QtConcurrent), so the returned objects
+    // have no parent and no thread affinity until adopted on the GUI thread.
+    static QList<Repository*> listFromJsonBytes(const QByteArray &bytes, int *totalCountOut = nullptr);
 
 signals:
     void idChanged();

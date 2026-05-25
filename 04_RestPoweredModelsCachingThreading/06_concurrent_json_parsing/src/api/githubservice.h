@@ -7,6 +7,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QList>
+#include <functional>     // NEW
 #include <qqml.h>
 
 class Repository;
@@ -20,6 +21,8 @@ class GitHubService : public QObject
     Q_PROPERTY(QString authToken READ authToken WRITE setAuthToken NOTIFY authTokenChanged)
     Q_PROPERTY(bool isLoading READ isLoading NOTIFY isLoadingChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorMessageChanged)
+    Q_PROPERTY(bool isParsing READ isParsing NOTIFY isParsingChanged)     // NEW
+
 
 public:
     explicit GitHubService(QObject *parent = nullptr);
@@ -27,6 +30,8 @@ public:
     QString authToken() const { return m_authToken; }
     bool isLoading() const { return m_isLoading; }
     QString errorMessage() const { return m_errorMessage; }
+    bool isParsing() const { return m_inflightParses > 0; }     // NEW
+
 
     void setAuthToken(const QString &token);
     // NEW: Wire the service to a shared on-disk cache. When set, every paged/cursor
@@ -49,6 +54,8 @@ signals:
     void authTokenChanged();
     void isLoadingChanged();
     void errorMessageChanged();
+    void isParsingChanged();     // NEW
+
 
     // API-reported total so the model can track pagination state.
     void searchResultsPageReady(const QList<Repository*> &repositories, int page, int totalCount);
@@ -70,7 +77,7 @@ private slots:
     void onSearchResultsCursorReceived();
 
     void onCacheLoaded(const QString &key, const QByteArray &body,
-                       const QByteArray &etag, bool found);  // NEW
+                       const QByteArray &etag, bool found);
 
     void onRequestFailed(QNetworkReply::NetworkError error);
 
@@ -86,7 +93,15 @@ private:
     };
 
     QList<Repository*> parseSearchItems(const QByteArray &body,
-                         int *totalCountOut = nullptr) const;  // NEW
+                         int *totalCountOut = nullptr) const;
+
+    // NEW: Parses `body` on a worker thread via QtConcurrent. When parsing finishes,
+    // `onParsed(repos, totalCount)` is invoked on the GUI thread. isParsing stays
+    // true for the duration so QML can show a "parsing…" state distinct from "fetching…".
+    void parseBytesAsync(const QByteArray &body,
+                         std::function<void(const QList<Repository*> &, int)> onParsed);
+    void beginParse();
+    void endParse();
 
     void setIsLoading(bool loading);
     void setErrorMessage(const QString &message);
@@ -95,8 +110,9 @@ private:
     QString m_authToken;
     bool m_isLoading = false;
     QString m_errorMessage;
-    CacheManager *m_cache = nullptr;                       // NEW
-    QHash<QString, PendingRequest> m_pendingByKey;          // NEW
+    CacheManager *m_cache = nullptr;
+    QHash<QString, PendingRequest> m_pendingByKey;
+    int m_inflightParses = 0;     // NEW
 };
 
 #endif // GITHUBSERVICE_H

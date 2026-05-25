@@ -1,16 +1,32 @@
 #include "githubservice.h"
-#include "repository.h"     // NEW
-#include "cachemanager.h"     // NEW
+#include "repository.h"
+#include "cachemanager.h"
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QDebug>
+#include <QElapsedTimer>     // NEW
+#include <QtConcurrent>      // NEW
+#include <QFutureWatcher>    // NEW
+#include <QThread>           // NEW
 
 GitHubService::GitHubService(QObject *parent)
     : QObject(parent)
     , m_networkManager(new QNetworkAccessManager(this))
 {
+}
+
+void GitHubService::beginParse()
+{
+    if (m_inflightParses++ == 0)
+        emit isParsingChanged();
+}
+
+void GitHubService::endParse()
+{
+    if (--m_inflightParses == 0)
+        emit isParsingChanged();
 }
 
 void GitHubService::setCache(CacheManager *cache)
@@ -43,6 +59,47 @@ QList<Repository*> GitHubService::parseSearchItems(const QByteArray &body, int *
     }
     return items;
 }
+
+void GitHubService::parseBytesAsync(const QByteArray &body,
+                                    std::function<void(const QList<Repository*> &, int)> onParsed)
+{
+    beginParse();
+
+    auto *watcher = new QFutureWatcher<QList<Repository*>>(this);
+
+    // The shared total-count needs to survive past the lambda that produces the list,
+    // so it is captured into a heap cell the watcher owns for its lifetime.
+    auto *total = new int(0);
+
+    connect(watcher, &QFutureWatcher<QList<Repository*>>::finished, this,
+            [this, watcher, total, onParsed]() {
+                const QList<Repository*> repos = watcher->result();
+                const int totalCount = *total;
+                delete total;
+                watcher->deleteLater();
+                endParse();
+                onParsed(repos, totalCount);
+            });
+
+    // The parsed objects are created on the QtConcurrent worker thread, so they
+    // acquire that thread's affinity. moveToThread() may only be called from an
+    // object's *current* thread, so we re-home them to the GUI thread from inside
+    // the worker (where they still live) before handing them back. Otherwise the
+    // model's setParent() on the GUI thread fails with a cross-thread warning.
+    QThread *guiThread = this->thread();
+    QFuture<QList<Repository*>> future = QtConcurrent::run([body, total, guiThread]() {
+        QElapsedTimer timer;
+        timer.start();
+        QList<Repository*> repos = Repository::listFromJsonBytes(body, total);
+        for (Repository *r : repos)
+            r->moveToThread(guiThread);
+        qDebug() << "[parse] off-GUI-thread parse of" << body.size()
+                 << "bytes ->" << repos.size() << "repos in" << timer.elapsed() << "ms";
+        return repos;
+    });
+    watcher->setFuture(future);
+}
+
 
 void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, const QByteArray &etag, bool found)
 {
@@ -243,11 +300,6 @@ void GitHubService::onSearchResultsPageReceived()
         return;
     }
 
-    /*
-    const int page = reply->property("page").toInt();
-    const QByteArray data = reply->readAll();
-    reply->deleteLater();
-    */
     const int page = reply->property("page").toInt();
     const QString cacheKey = reply->url().toString();
     const QByteArray etag = reply->rawHeader("ETag");
@@ -260,6 +312,7 @@ void GitHubService::onSearchResultsPageReceived()
     }
 
 
+    /*
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
@@ -280,6 +333,15 @@ void GitHubService::onSearchResultsPageReceived()
     }
 
     emit searchResultsPageReady(typedList, page, totalCount);
+    */
+
+    parseBytesAsync(data, [this, page](const QList<Repository*> &repos, int totalCount) {
+        if (repos.isEmpty() && totalCount == 0) {
+            setErrorMessage("JSON parse error on paged search response");
+            return;
+        }
+        emit searchResultsPageReady(repos, page, totalCount);
+    });
 }
 
 void GitHubService::onSearchResultsCursorReceived()
@@ -312,6 +374,7 @@ void GitHubService::onSearchResultsCursorReceived()
         m_cache->requestSave(cacheKey, data, etag);
     }
 
+    /*
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
@@ -329,6 +392,11 @@ void GitHubService::onSearchResultsCursorReceived()
     }
 
     emit searchResultsCursorReady(typedList, nextUrl, isFirstPage);
+    */
+    parseBytesAsync(data, [this, nextUrl, isFirstPage](const QList<Repository*> &repos, int totalCount) {
+        Q_UNUSED(totalCount);
+        emit searchResultsCursorReady(repos, nextUrl, isFirstPage);
+    });
 }
 
 void GitHubService::onRequestFailed(QNetworkReply::NetworkError error)
