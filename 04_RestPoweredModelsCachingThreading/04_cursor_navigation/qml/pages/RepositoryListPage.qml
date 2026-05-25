@@ -103,10 +103,16 @@ Item {
                 // atYEnd so fetchNextPage() fires only on an actual scroll event.
                 footerComponent: Item {
                     width: listContainer.view.width
+                    // Reserve room only while the "load more" spinner is showing,
+                    // so an empty list doesn't carry dead space at the top.
+                    height: footerSpinner.visible ? 56 : 0
 
                     BusyIndicator {
+                        id: footerSpinner
                         anchors.centerIn: parent
-                        visible: repoModel.useCursor && repoModel.isLoadingPage
+                        // Only for cursor-mode "load more" — never the first fetch,
+                        // where StatusStrip's spinner already covers the loading state.
+                        visible: repoModel.useCursor && repoModel.isLoadingPage && repoModel.count > 0
                         running: parent.visible
                         contentItem: Item {
                             implicitWidth: 32
