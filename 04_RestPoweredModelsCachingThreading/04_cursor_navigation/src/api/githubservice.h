@@ -27,12 +27,22 @@ public:
 
     void setAuthToken(const QString &token);
 
+    /*
     Q_INVOKABLE void searchRepositories(const QString &query, const QString &sort = "stars",
                                                                 const QString &order = "desc");
+    */
 
-    // NEW: Page-aware search used by the model's offset-pagination path.
     void searchRepositoriesPage(const QString &query, int page, int perPage,
                                 const QString &sort = "stars", const QString &order = "desc");
+
+    // NEW: Cursor-pagination entry. The first call uses searchRepositoriesCursor()
+    // (same URL pattern as the offset path but parses the `Link` header on response);
+    // follow-ups call fetchByUrl() with the URL extracted from `Link: <…>; rel="next"`.
+    void searchRepositoriesCursor(const QString &query, int perPage,
+                                  const QString &sort = "stars", const QString &order = "desc");
+    void fetchByUrl(const QUrl &url);
+
+    static QString parseNextLink(const QByteArray &linkHeader);
 
 signals:
     void authTokenChanged();
@@ -40,15 +50,24 @@ signals:
     void errorMessageChanged();
 
     // The Repository* objects emitted have no parent. The receiver takes ownership.
+    /*
     void searchResultsReady(const QList<Repository*> &repositories);
+    */
 
-    // NEW: Page-aware variant. Carries the page number requested and the
+
     // API-reported total so the model can track pagination state.
     void searchResultsPageReady(const QList<Repository*> &repositories, int page, int totalCount);
 
+    // NEW: Cursor variant. `nextUrl` is empty when there is no next page.
+    // `isFirstPage` distinguishes a fresh cursor search (model should reset)
+    // from a follow-up fetchByUrl() result (model should append).
+    void searchResultsCursorReady(const QList<Repository*> &repositories,
+                                  const QString &nextUrl, bool isFirstPage);
+
 private slots:
-    void onSearchResultsReceived();
-    void onSearchResultsPageReceived();          // NEW
+    //void onSearchResultsReceived();
+    void onSearchResultsPageReceived();
+    void onSearchResultsCursorReceived();      // NEW
     void onRequestFailed(QNetworkReply::NetworkError error);
 
 private:

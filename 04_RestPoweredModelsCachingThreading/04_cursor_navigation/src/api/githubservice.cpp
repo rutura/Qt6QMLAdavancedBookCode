@@ -37,6 +37,7 @@ void GitHubService::setErrorMessage(const QString &message)
     }
 }
 
+/*
 void GitHubService::searchRepositories(const QString &query, const QString &sort, const QString &order)
 {
     if (m_isLoading || query.isEmpty()) {
@@ -65,6 +66,7 @@ void GitHubService::searchRepositories(const QString &query, const QString &sort
     connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
             this, &GitHubService::onRequestFailed);
 }
+*/
 
 void GitHubService::searchRepositoriesPage(const QString &query, int page, int perPage,
                                            const QString &sort, const QString &order)
@@ -100,10 +102,85 @@ void GitHubService::searchRepositoriesPage(const QString &query, int page, int p
 }
 
 
+void GitHubService::searchRepositoriesCursor(const QString &query, int perPage,
+                                             const QString &sort, const QString &order)
+{
+    if (m_isLoading || query.isEmpty()) {
+        return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(QString());
+
+    QUrl url(QString("https://api.github.com/search/repositories?q=%1&sort=%2&order=%3&per_page=%4&page=1")
+                 .arg(query, sort, order)
+                 .arg(perPage));
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("User-Agent", "RepoExplorerPro-Qt");
+    request.setRawHeader("Accept", "application/vnd.github+json");
+
+    if (!m_authToken.isEmpty()) {
+        request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
+    }
+
+    QNetworkReply *reply = m_networkManager->get(request);
+    reply->setProperty("requestType", "searchRepositoriesCursor");
+    reply->setProperty("isFirstPage", true);
+
+    connect(reply, &QNetworkReply::finished, this, &GitHubService::onSearchResultsCursorReceived);
+    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
+            this, &GitHubService::onRequestFailed);
+}
+
+void GitHubService::fetchByUrl(const QUrl &url)
+{
+    if (m_isLoading || !url.isValid()) {
+        return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(QString());
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("User-Agent", "RepoExplorerPro-Qt");
+    request.setRawHeader("Accept", "application/vnd.github+json");
+
+    if (!m_authToken.isEmpty()) {
+        request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
+    }
+
+    QNetworkReply *reply = m_networkManager->get(request);
+    reply->setProperty("requestType", "searchRepositoriesCursor");
+    reply->setProperty("isFirstPage", false);
+
+    connect(reply, &QNetworkReply::finished, this, &GitHubService::onSearchResultsCursorReceived);
+    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
+            this, &GitHubService::onRequestFailed);
+}
+
+QString GitHubService::parseNextLink(const QByteArray &linkHeader)
+{
+    // Format: <url>; rel="next", <url>; rel="last", ...
+    const QString header = QString::fromUtf8(linkHeader);
+    const QStringList parts = header.split(',', Qt::SkipEmptyParts);
+    for (const QString &part : parts) {
+        const int relIdx = part.indexOf(QStringLiteral("rel=\"next\""));
+        if (relIdx < 0) continue;
+        const int lt = part.indexOf('<');
+        const int gt = part.indexOf('>');
+        if (lt >= 0 && gt > lt) {
+            return part.mid(lt + 1, gt - lt - 1);
+        }
+    }
+    return {};
+}
 
 
 
-
+/*
 void GitHubService::onSearchResultsReceived()
 {
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
@@ -149,6 +226,7 @@ void GitHubService::onSearchResultsReceived()
     emit searchResultsReady(typedList);
     reply->deleteLater();
 }
+*/
 
 void GitHubService::onSearchResultsPageReceived()
 {
@@ -190,6 +268,47 @@ void GitHubService::onSearchResultsPageReceived()
     }
 
     emit searchResultsPageReady(typedList, page, totalCount);
+}
+
+void GitHubService::onSearchResultsCursorReceived()
+{
+    QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        setIsLoading(false);
+        setErrorMessage("Invalid response received");
+        return;
+    }
+
+    setIsLoading(false);
+
+    if (reply->error() != QNetworkReply::NoError) {
+        reply->deleteLater();
+        return;
+    }
+
+    const bool isFirstPage = reply->property("isFirstPage").toBool();
+    const QByteArray linkHeader = reply->rawHeader("Link");
+    const QString nextUrl = parseNextLink(linkHeader);
+    const QByteArray data = reply->readAll();
+    reply->deleteLater();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        setErrorMessage("JSON parse error on cursor search response");
+        return;
+    }
+
+    const QJsonArray items = doc.object().value("items").toArray();
+    QList<Repository*> typedList;
+    typedList.reserve(items.size());
+    for (const QJsonValue &value : items) {
+        if (value.isObject()) {
+            typedList.append(Repository::fromJson(value.toObject(), nullptr));
+        }
+    }
+
+    emit searchResultsCursorReady(typedList, nextUrl, isFirstPage);
 }
 
 void GitHubService::onRequestFailed(QNetworkReply::NetworkError error)

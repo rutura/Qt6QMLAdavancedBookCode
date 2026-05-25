@@ -45,20 +45,35 @@ Item {
 
             StatusStrip {
                 Layout.fillWidth: true
-                busy: repoModel.isLoadingPage                                      // CHANGED
-                statusText: repoModel.count + " of " + repoModel.totalCount         // CHANGED
-                            + "  ·  page " + repoModel.currentPage                  // CHANGED
+                busy: repoModel.isLoadingPage
+                /*
+                statusText: repoModel.count + " of " + repoModel.totalCount
+                            + "  ·  page " + repoModel.currentPage
+                */
+                statusText: repoModel.useCursor                                       // CHANGED
+                                ? (repoModel.count + " loaded · "
+                                   + (repoModel.hasMore ? "more available" : "end of results"))
+                                : (repoModel.count + " of " + repoModel.totalCount
+                                   + "  ·  page " + repoModel.currentPage)
+
+                ComboBox {                                                            // NEW
+                    id: modeCombo
+                    model: ["Offset", "Cursor"]
+                    currentIndex: repoModel.useCursor ? 1 : 0
+                    onActivated: repoModel.useCursor = (currentIndex === 1)
+                }
+
                 TokenField {
-                    service: repoModel.service                                     // CHANGED
+                    service: repoModel.service
                 }
             }
 
             Label {
 
                 Layout.fillWidth: true
-                visible: repoModel.service.errorMessage.length > 0                 // CHANGED
+                visible: repoModel.service.errorMessage.length > 0
                 text: {
-                    const msg = repoModel.service.errorMessage                     // CHANGED
+                    const msg = repoModel.service.errorMessage
                     if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
                         return msg + "\n\nTip: add a GitHub token above to raise your rate limit, or wait for it to reset."
                     return msg
@@ -69,24 +84,69 @@ Item {
             }
 
             ListContainer {
+                id: listContainer                                 // NEW: footer references its view
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: repoModel                                  // CHANGED: the model, not a QVariantList
+                model: repoModel
 
                 delegate: RepoCard {
-                    required property var model                   // CHANGED: model, not modelData
+                    required property var model
                     width: ListView.view ? ListView.view.width : implicitWidth
-                    fullName: model.fullName                      // CHANGED
-                    description: model.description                 // CHANGED
-                    stargazersCount: model.stargazersCount         // CHANGED
-                    forksCount: model.forksCount                   // CHANGED
-                    language: model.language                       // CHANGED
+                    fullName: model.fullName
+                    description: model.description
+                    stargazersCount: model.stargazersCount
+                    forksCount: model.forksCount
+                    language: model.language
+                }
+
+                // Cursor-mode infinite scroll: a Connections block watches
+                // atYEnd so fetchNextPage() fires only on an actual scroll event.
+                footerComponent: Item {
+                    width: listContainer.view.width
+
+                    BusyIndicator {
+                        anchors.centerIn: parent
+                        visible: repoModel.useCursor && repoModel.isLoadingPage
+                        running: parent.visible
+                        contentItem: Item {
+                            implicitWidth: 32
+                            implicitHeight: 32
+                            Rectangle {        // faint track ring
+                                anchors.fill: parent
+                                radius: width / 2
+                                color: "transparent"
+                                border { width: 3; color: Qt.alpha(Theme.accent, 0.25) }
+                            }
+                            Rectangle {        // leading dot
+                                width: 8; height: 8; radius: 4
+                                color: Theme.accent
+                                anchors { horizontalCenter: parent.horizontalCenter
+                                            top: parent.top; topMargin: -1 }
+                            }
+                            RotationAnimator on rotation {
+                                running: true; loops: Animation.Infinite
+                                from: 0; to: 360; duration: 900
+                            }
+                        }
+                    }
+                }
+            }
+
+            Connections {
+                target: listContainer.view
+                function onAtYEndChanged() {
+                    if (listContainer.view.atYEnd
+                            && repoModel.useCursor
+                            && repoModel.hasMore
+                            && !repoModel.isLoadingPage)
+                        repoModel.fetchNextPage()
                 }
             }
 
             // NEW: Load more button
             AccentButton {
                 Layout.alignment: Qt.AlignHCenter
+                visible: !repoModel.useCursor                     // NEW
                 text: repoModel.isLoadingPage ? "Loading…" : "Load more"
                 enabled: repoModel.hasMore && !repoModel.isLoadingPage
                 onClicked: repoModel.loadMore()

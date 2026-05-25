@@ -2,12 +2,45 @@
 #include "githubservice.h"
 #include "repository.h"
 
+#include <QUrl>          // NEW
+
+
 RepositoryListModel::RepositoryListModel(QObject *parent)
     : QAbstractListModel(parent)
     , m_service(new GitHubService(this))
 {
     connect(m_service, &GitHubService::searchResultsPageReady,           // CHANGED
             this, &RepositoryListModel::onSearchResultsPageReady);       // CHANGED
+
+    connect(m_service, &GitHubService::searchResultsCursorReady,           // NEW
+            this, &RepositoryListModel::onSearchResultsCursorReady);       // NEW
+}
+
+bool RepositoryListModel::hasMore() const
+{
+    if (m_useCursor)
+        return !m_nextUrl.isEmpty();
+    return m_repos.size() < m_totalCount;
+}
+
+void RepositoryListModel::setUseCursor(bool useCursor)
+{
+    if (m_useCursor != useCursor) {
+        m_useCursor = useCursor;
+
+        // Clear all results and reset every mode-specific counter so offset
+        // variables (totalCount, currentPage) and cursor variables (nextUrl)
+        // never bleed across modes.
+        resetWith({});
+        m_currentQuery.clear();
+        m_currentPage = 0;
+        emit currentPageChanged();
+        setTotalCount(0);
+        setNextUrl({});
+
+        emit useCursorChanged();
+        emit hasMoreChanged();
+    }
 }
 
 void RepositoryListModel::setPerPage(int perPage)
@@ -31,6 +64,14 @@ void RepositoryListModel::setTotalCount(int total)
     if (m_totalCount != total) {
         m_totalCount = total;
         emit totalCountChanged();
+    }
+}
+
+void RepositoryListModel::setNextUrl(const QString &url)
+{
+    if (m_nextUrl != url) {
+        m_nextUrl = url;
+        emit nextUrlChanged();
     }
 }
 
@@ -81,21 +122,43 @@ void RepositoryListModel::search(const QString &query)
 
     m_currentQuery = query;
     m_currentPage = 1;
+    setNextUrl({});                  // NEW: clear any stale cursor
     emit currentPageChanged();
 
+    /*
     setIsLoadingPage(true);
     m_service->searchRepositoriesPage(query, m_currentPage, m_perPage);
+    */
+    setIsLoadingPage(true);
+    if (m_useCursor) {                                       // NEW
+        m_service->searchRepositoriesCursor(query, m_perPage);
+    } else {
+        m_service->searchRepositoriesPage(query, m_currentPage, m_perPage);
+    }
 
 }
 
 void RepositoryListModel::loadMore()
 {
+    /*
     if (m_isLoadingPage || m_currentQuery.isEmpty() || !hasMore())
+        return;
+    */
+    if (m_isLoadingPage || m_currentQuery.isEmpty() || !hasMore() || m_useCursor)  // CHANGED: + m_useCursor
         return;
 
     setIsLoadingPage(true);
     const int nextPage = m_currentPage + 1;
     m_service->searchRepositoriesPage(m_currentQuery, nextPage, m_perPage);
+}
+
+void RepositoryListModel::fetchNextPage()
+{
+    if (m_isLoadingPage || !m_useCursor || m_nextUrl.isEmpty())
+        return;
+
+    setIsLoadingPage(true);
+    m_service->fetchByUrl(QUrl(m_nextUrl));
 }
 
 void RepositoryListModel::onSearchResultsPageReady(const QList<Repository*> &repositories, int page, int totalCount)
@@ -113,6 +176,22 @@ void RepositoryListModel::onSearchResultsPageReady(const QList<Repository*> &rep
     emit currentPageChanged();
     emit hasMoreChanged();
 }
+
+void RepositoryListModel::onSearchResultsCursorReady(const QList<Repository*> &repositories,
+                                                     const QString &nextUrl, bool isFirstPage)
+{
+    setIsLoadingPage(false);
+    setNextUrl(nextUrl);
+
+    if (isFirstPage)
+        resetWith(repositories);
+    else
+        appendBatch(repositories);
+
+    emit hasMoreChanged();
+}
+
+
 
 void RepositoryListModel::resetWith(const QList<Repository*> &batch)
 {
