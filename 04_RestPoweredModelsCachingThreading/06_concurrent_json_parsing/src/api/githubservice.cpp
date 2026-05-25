@@ -95,6 +95,9 @@ void GitHubService::parseBytesAsync(const QByteArray &body,
             r->moveToThread(guiThread);
         qDebug() << "[parse] off-GUI-thread parse of" << body.size()
                  << "bytes ->" << repos.size() << "repos in" << timer.elapsed() << "ms";
+
+        //QThread::msleep(1500);   // DEBUG: artificially extend the parse window
+
         return repos;
     });
     watcher->setFuture(future);
