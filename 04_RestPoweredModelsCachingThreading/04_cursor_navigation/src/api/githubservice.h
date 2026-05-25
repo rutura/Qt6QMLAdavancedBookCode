@@ -27,11 +27,6 @@ public:
 
     void setAuthToken(const QString &token);
 
-    /*
-    Q_INVOKABLE void searchRepositories(const QString &query, const QString &sort = "stars",
-                                                                const QString &order = "desc");
-    */
-
     void searchRepositoriesPage(const QString &query, int page, int perPage,
                                 const QString &sort = "stars", const QString &order = "desc");
 
@@ -49,12 +44,6 @@ signals:
     void isLoadingChanged();
     void errorMessageChanged();
 
-    // The Repository* objects emitted have no parent. The receiver takes ownership.
-    /*
-    void searchResultsReady(const QList<Repository*> &repositories);
-    */
-
-
     // API-reported total so the model can track pagination state.
     void searchResultsPageReady(const QList<Repository*> &repositories, int page, int totalCount);
 
@@ -65,7 +54,6 @@ signals:
                                   const QString &nextUrl, bool isFirstPage);
 
 private slots:
-    //void onSearchResultsReceived();
     void onSearchResultsPageReceived();
     void onSearchResultsCursorReceived();      // NEW
     void onRequestFailed(QNetworkReply::NetworkError error);
