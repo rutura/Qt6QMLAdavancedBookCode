@@ -51,7 +51,24 @@ Item {
                                    + (repoModel.hasMore ? "more available" : "end of results"))
                                 : (repoModel.count + " of " + repoModel.totalCount
                                    + "  ·  page " + repoModel.currentPage)
-                // NEW: honest "parsing…" indicator, distinct from the fetch spinner
+
+                // NEW: live rate-limit pill
+                PillBadge {
+                    visible: repoModel.service.rateLimitRemaining >= 0
+                    text: {
+                        const r = repoModel.service.rateLimitRemaining
+                        const t = repoModel.service.rateLimitTotal
+                        const reset = repoModel.service.rateLimitReset
+                        const resetStr = isNaN(reset.getTime()) ? ""
+                            : (" · " + Qt.formatTime(reset, "hh:mm"))
+                        return "rate " + r + "/" + t + resetStr
+                    }
+                    pillColor: repoModel.service.rateLimitRemaining <= 5
+                               ? Theme.error : Theme.surfaceHover
+                    textColor: repoModel.service.rateLimitRemaining <= 5
+                               ? Theme.textOnAccent : Theme.textSecondary
+                }
+
                 PillBadge {
                     visible: repoModel.service.isParsing
                     text: "parsing…"
