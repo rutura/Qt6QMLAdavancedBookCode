@@ -3,17 +3,28 @@
 #include "repository.h"
 
 #include <QUrl>          // NEW
+#include "cachemanager.h"     // NEW
+#include <QQmlEngine>          // NEW
 
 
 RepositoryListModel::RepositoryListModel(QObject *parent)
     : QAbstractListModel(parent)
     , m_service(new GitHubService(this))
 {
-    connect(m_service, &GitHubService::searchResultsPageReady,           // CHANGED
-            this, &RepositoryListModel::onSearchResultsPageReady);       // CHANGED
+    connect(m_service, &GitHubService::searchResultsPageReady,
+            this, &RepositoryListModel::onSearchResultsPageReady);
 
-    connect(m_service, &GitHubService::searchResultsCursorReady,           // NEW
-            this, &RepositoryListModel::onSearchResultsCursorReady);       // NEW
+    connect(m_service, &GitHubService::searchResultsCursorReady,
+            this, &RepositoryListModel::onSearchResultsCursorReady);
+
+    // NEW: hand the QML-singleton cache to the service so requests go
+    // disk-first, then network. Both responses arrive here as separate signals.
+    m_service->setCache(CacheManager::create(nullptr, nullptr));
+
+    connect(m_service, &GitHubService::cachedPageReady,
+            this, &RepositoryListModel::onSearchResultsPageReady);
+    connect(m_service, &GitHubService::cachedCursorReady,
+            this, &RepositoryListModel::onSearchResultsCursorReady);
 }
 
 bool RepositoryListModel::hasMore() const

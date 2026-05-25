@@ -1,6 +1,8 @@
 #ifndef GITHUBSERVICE_H
 #define GITHUBSERVICE_H
 
+#include <QHash>          // NEW
+#include <QString>        // NEW
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -8,6 +10,7 @@
 #include <qqml.h>
 
 class Repository;
+class CacheManager;        // NEW
 
 class GitHubService : public QObject
 {
@@ -26,6 +29,9 @@ public:
     QString errorMessage() const { return m_errorMessage; }
 
     void setAuthToken(const QString &token);
+    // NEW: Wire the service to a shared on-disk cache. When set, every paged/cursor
+    // request first looks up the cache (stale-while-revalidate) before the network call.
+    void setCache(CacheManager *cache);
 
     void searchRepositoriesPage(const QString &query, int page, int perPage,
                                 const QString &sort = "stars", const QString &order = "desc");
@@ -53,12 +59,35 @@ signals:
     void searchResultsCursorReady(const QList<Repository*> &repositories,
                                   const QString &nextUrl, bool isFirstPage);
 
+    // NEW: Cache hit fired ahead of any network response so the model can render
+    // stale data instantly. The network results follow when they arrive.
+    void cachedPageReady(const QList<Repository*> &repositories, int page, int totalCount);
+    void cachedCursorReady(const QList<Repository*> &repositories,
+                           const QString &nextUrl, bool isFirstPage);
+
 private slots:
     void onSearchResultsPageReceived();
-    void onSearchResultsCursorReceived();      // NEW
+    void onSearchResultsCursorReceived();
+
+    void onCacheLoaded(const QString &key, const QByteArray &body,
+                       const QByteArray &etag, bool found);  // NEW
+
     void onRequestFailed(QNetworkReply::NetworkError error);
 
 private:
+    // NEW: a pending request remembers what kind of request a cache key belongs to,
+    // so when the cache answers we know how to interpret the bytes.
+    enum class RequestKind { Page, Cursor };
+
+    struct PendingRequest {
+        RequestKind kind;
+        int page = 0;             // Page kind only.
+        bool isFirstPage = false; // Cursor kind only.
+    };
+
+    QList<Repository*> parseSearchItems(const QByteArray &body,
+                         int *totalCountOut = nullptr) const;  // NEW
+
     void setIsLoading(bool loading);
     void setErrorMessage(const QString &message);
 
@@ -66,6 +95,8 @@ private:
     QString m_authToken;
     bool m_isLoading = false;
     QString m_errorMessage;
+    CacheManager *m_cache = nullptr;                       // NEW
+    QHash<QString, PendingRequest> m_pendingByKey;          // NEW
 };
 
 #endif // GITHUBSERVICE_H

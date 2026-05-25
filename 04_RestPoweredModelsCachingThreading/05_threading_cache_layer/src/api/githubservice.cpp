@@ -1,5 +1,6 @@
 #include "githubservice.h"
 #include "repository.h"     // NEW
+#include "cachemanager.h"     // NEW
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -10,6 +11,66 @@ GitHubService::GitHubService(QObject *parent)
     : QObject(parent)
     , m_networkManager(new QNetworkAccessManager(this))
 {
+}
+
+void GitHubService::setCache(CacheManager *cache)
+{
+    if (m_cache == cache) return;
+    if (m_cache) m_cache->disconnect(this);
+    m_cache = cache;
+    if (m_cache) {
+        connect(m_cache, &CacheManager::loaded, this, &GitHubService::onCacheLoaded);
+    }
+}
+
+QList<Repository*> GitHubService::parseSearchItems(const QByteArray &body, int *totalCountOut) const
+{
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+    QList<Repository*> items;
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+        return items;
+
+    const QJsonObject root = doc.object();
+    if (totalCountOut)
+        *totalCountOut = root.value("total_count").toInt();
+
+    const QJsonArray arr = root.value("items").toArray();
+    items.reserve(arr.size());
+    for (const QJsonValue &v : arr) {
+        if (v.isObject())
+            items.append(Repository::fromJson(v.toObject(), nullptr));
+    }
+    return items;
+}
+
+void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, const QByteArray &etag, bool found)
+{
+    Q_UNUSED(etag);
+    auto it = m_pendingByKey.find(key);
+    if (it == m_pendingByKey.end())
+        return;
+
+    const PendingRequest req = it.value();
+    m_pendingByKey.erase(it);
+
+    if (!found || body.isEmpty())
+        return;
+
+    if (req.kind == RequestKind::Page) {
+        int total = 0;
+        QList<Repository*> items = parseSearchItems(body, &total);
+        if (!items.isEmpty() || total > 0)
+            emit cachedPageReady(items, req.page, total);
+        else
+            qDeleteAll(items);
+    } else {
+        QList<Repository*> items = parseSearchItems(body);
+        if (!items.isEmpty())
+            emit cachedCursorReady(items, QString(), req.isFirstPage);
+        else
+            qDeleteAll(items);
+    }
 }
 
 
@@ -52,6 +113,13 @@ void GitHubService::searchRepositoriesPage(const QString &query, int page, int p
                  .arg(perPage)
                  .arg(page));
 
+    // NEW: fire a cache lookup in parallel with the network request.
+    if (m_cache) {
+        const QString key = url.toString();
+        m_pendingByKey.insert(key, PendingRequest{ RequestKind::Page, page, false });
+        m_cache->requestLoad(key);
+    }
+
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("User-Agent", "RepoExplorerPro-Qt");
@@ -85,6 +153,12 @@ void GitHubService::searchRepositoriesCursor(const QString &query, int perPage,
                  .arg(query, sort, order)
                  .arg(perPage));
 
+    if (m_cache) {
+        const QString key = url.toString();
+        m_pendingByKey.insert(key, PendingRequest{ RequestKind::Cursor, 0, true });
+        m_cache->requestLoad(key);
+    }
+
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("User-Agent", "RepoExplorerPro-Qt");
@@ -111,6 +185,12 @@ void GitHubService::fetchByUrl(const QUrl &url)
 
     setIsLoading(true);
     setErrorMessage(QString());
+
+    if (m_cache) {
+        const QString key = url.toString();
+        m_pendingByKey.insert(key, PendingRequest{ RequestKind::Cursor, 0, false });
+        m_cache->requestLoad(key);
+    }
 
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -163,9 +243,22 @@ void GitHubService::onSearchResultsPageReceived()
         return;
     }
 
+    /*
     const int page = reply->property("page").toInt();
     const QByteArray data = reply->readAll();
     reply->deleteLater();
+    */
+    const int page = reply->property("page").toInt();
+    const QString cacheKey = reply->url().toString();
+    const QByteArray etag = reply->rawHeader("ETag");
+    const QByteArray data = reply->readAll();
+    reply->deleteLater();
+
+    // NEW: persist this fresh response for next time.
+    if (m_cache && !data.isEmpty()) {
+        m_cache->requestSave(cacheKey, data, etag);
+    }
+
 
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
@@ -208,8 +301,16 @@ void GitHubService::onSearchResultsCursorReceived()
     const bool isFirstPage = reply->property("isFirstPage").toBool();
     const QByteArray linkHeader = reply->rawHeader("Link");
     const QString nextUrl = parseNextLink(linkHeader);
+
+    const QString cacheKey = reply->url().toString();
+    const QByteArray etag = reply->rawHeader("ETag");
+
     const QByteArray data = reply->readAll();
     reply->deleteLater();
+
+    if (m_cache && !data.isEmpty()) {
+        m_cache->requestSave(cacheKey, data, etag);
+    }
 
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
