@@ -135,8 +135,12 @@ void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, bo
 
 void GitHubService::setAuthToken(const QString &token)
 {
-    if (m_authToken != token) {
-        m_authToken = token;
+    // Trim whitespace so a pasted token with a trailing newline does not embed a
+    // control character (0x0A) into the Authorization header value, which would
+    // cause Qt 6.7+ to silently drop the header and log a warning.
+    const QString trimmed = token.trimmed();
+    if (m_authToken != trimmed) {
+        m_authToken = trimmed;
         emit authTokenChanged();
     }
 }

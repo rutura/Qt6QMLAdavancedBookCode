@@ -139,6 +139,7 @@ private:
     // NEW: live-update state
     QTimer *m_refreshTimer = nullptr;
     QTimer *m_clearNewTimer = nullptr;
+    QTimer *m_debugCountdownTimer = nullptr;  // NEW: prints countdown every 2s when auto-refresh is on
     bool m_autoRefresh = false;
     int m_refreshIntervalMs = 15000;  // 15s default
     QDateTime m_lastRefreshAt;
