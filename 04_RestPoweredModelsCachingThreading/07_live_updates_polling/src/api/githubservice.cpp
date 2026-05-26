@@ -17,30 +17,6 @@ GitHubService::GitHubService(QObject *parent)
 {
 }
 
-void GitHubService::updateRateLimit(QNetworkReply *reply)
-{
-    bool changed = false;
-
-    const QByteArray remaining = reply->rawHeader("X-RateLimit-Remaining");
-    if (!remaining.isEmpty()) {
-        m_rateLimitRemaining = remaining.toInt();
-        changed = true;
-    }
-    const QByteArray total = reply->rawHeader("X-RateLimit-Limit");
-    if (!total.isEmpty()) {
-        m_rateLimitTotal = total.toInt();
-        changed = true;
-    }
-    const QByteArray reset = reply->rawHeader("X-RateLimit-Reset");
-    if (!reset.isEmpty()) {
-        m_rateLimitReset = QDateTime::fromSecsSinceEpoch(reset.toLongLong());
-        changed = true;
-    }
-
-    if (changed)
-        emit rateLimitChanged();
-}
-
 void GitHubService::beginParse()
 {
     if (m_inflightParses++ == 0)
@@ -130,16 +106,7 @@ void GitHubService::parseBytesAsync(const QByteArray &body,
 
 void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, const QByteArray &etag, bool found)
 {
-    /*
     Q_UNUSED(etag);
-    */
-
-    // NEW: Remember the ETag so the in-flight request for this URL can attach
-    // If-None-Match. The network request was issued before the cache replied,
-    // so the conditional header is set there from this same store on the next call.
-    if (found && !etag.isEmpty())
-        m_etagByUrl.insert(key, etag);
-
     auto it = m_pendingByKey.find(key);
     if (it == m_pendingByKey.end())
         return;
@@ -222,15 +189,6 @@ void GitHubService::searchRepositoriesPage(const QString &query, int page, int p
         request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
     }
 
-
-    // NEW: m_etagByUrl is seeded by onCacheLoaded from a prior network save (this
-    // session or a previous run; cache files are persisted on disk). When present,
-    // the conditional request lets GitHub answer 304 and not spend our rate budget.
-    const auto etagIt = m_etagByUrl.constFind(url.toString());
-    if (etagIt != m_etagByUrl.constEnd() && !etagIt.value().isEmpty()) {
-        request.setRawHeader("If-None-Match", etagIt.value());
-    }
-
     QNetworkReply *reply = m_networkManager->get(request);
     reply->setProperty("requestType", "searchRepositoriesPage");
     reply->setProperty("page", page);
@@ -270,11 +228,6 @@ void GitHubService::searchRepositoriesCursor(const QString &query, int perPage,
         request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
     }
 
-    const auto etagIt = m_etagByUrl.constFind(url.toString());
-    if (etagIt != m_etagByUrl.constEnd() && !etagIt.value().isEmpty()) {
-        request.setRawHeader("If-None-Match", etagIt.value());
-    }
-
     QNetworkReply *reply = m_networkManager->get(request);
     reply->setProperty("requestType", "searchRepositoriesCursor");
     reply->setProperty("isFirstPage", true);
@@ -306,11 +259,6 @@ void GitHubService::fetchByUrl(const QUrl &url)
 
     if (!m_authToken.isEmpty()) {
         request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
-    }
-
-    const auto etagIt = m_etagByUrl.constFind(url.toString());
-    if (etagIt != m_etagByUrl.constEnd() && !etagIt.value().isEmpty()) {
-        request.setRawHeader("If-None-Match", etagIt.value());
     }
 
     QNetworkReply *reply = m_networkManager->get(request);
@@ -350,18 +298,7 @@ void GitHubService::onSearchResultsPageReceived()
 
     setIsLoading(false);
 
-    updateRateLimit(reply);     // NEW: every response carries the budget headers
-
-
     if (reply->error() != QNetworkReply::NoError) {
-        reply->deleteLater();
-        return;
-    }
-
-    // NEW: 304 Not Modified. The cached body the model already rendered is still
-    // current. No parse, no signal, deliberately no row churn.
-    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if (status == 304) {
         reply->deleteLater();
         return;
     }
@@ -375,9 +312,31 @@ void GitHubService::onSearchResultsPageReceived()
     // NEW: persist this fresh response for next time.
     if (m_cache && !data.isEmpty()) {
         m_cache->requestSave(cacheKey, data, etag);
-        if (!etag.isEmpty())
-            m_etagByUrl.insert(cacheKey, etag);     // NEW
     }
+
+
+    /*
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        setErrorMessage("JSON parse error on paged search response");
+        return;
+    }
+
+    const QJsonObject results = doc.object();
+    const int totalCount = results.value("total_count").toInt();
+    const QJsonArray items = results.value("items").toArray();
+
+    QList<Repository*> typedList;
+    typedList.reserve(items.size());
+    for (const QJsonValue &value : items) {
+        if (value.isObject()) {
+            typedList.append(Repository::fromJson(value.toObject(), nullptr));
+        }
+    }
+
+    emit searchResultsPageReady(typedList, page, totalCount);
+    */
 
     parseBytesAsync(data, [this, page](const QList<Repository*> &repos, int totalCount) {
         if (repos.isEmpty() && totalCount == 0) {
@@ -399,18 +358,7 @@ void GitHubService::onSearchResultsCursorReceived()
 
     setIsLoading(false);
 
-    updateRateLimit(reply);     // NEW: every response carries the budget headers
-
-
     if (reply->error() != QNetworkReply::NoError) {
-        reply->deleteLater();
-        return;
-    }
-
-    // NEW: 304 Not Modified. The cached body the model already rendered is still
-    // current. No parse, no signal, deliberately no row churn.
-    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if (status == 304) {
         reply->deleteLater();
         return;
     }
@@ -427,10 +375,27 @@ void GitHubService::onSearchResultsCursorReceived()
 
     if (m_cache && !data.isEmpty()) {
         m_cache->requestSave(cacheKey, data, etag);
-        if (!etag.isEmpty())
-            m_etagByUrl.insert(cacheKey, etag);     // NEW
     }
 
+    /*
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        setErrorMessage("JSON parse error on cursor search response");
+        return;
+    }
+
+    const QJsonArray items = doc.object().value("items").toArray();
+    QList<Repository*> typedList;
+    typedList.reserve(items.size());
+    for (const QJsonValue &value : items) {
+        if (value.isObject()) {
+            typedList.append(Repository::fromJson(value.toObject(), nullptr));
+        }
+    }
+
+    emit searchResultsCursorReady(typedList, nextUrl, isFirstPage);
+    */
     parseBytesAsync(data, [this, nextUrl, isFirstPage](const QList<Repository*> &repos, int totalCount) {
         Q_UNUSED(totalCount);
         emit searchResultsCursorReady(repos, nextUrl, isFirstPage);
