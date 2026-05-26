@@ -149,8 +149,6 @@ Item {
                     stargazersCount: model.stargazersCount
                     forksCount: model.forksCount
                     language: model.language
-                    isNew: model.isNew   // NEW: diff-merge highlight
-
                 }
 
                 // Cursor-mode infinite scroll: a Connections block watches

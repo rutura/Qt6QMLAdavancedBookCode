@@ -13,8 +13,6 @@ Item {
     property string language: ""
     property bool isPrivate: false
     property var updatedAt: undefined
-    // Diff-merge highlight (section 08). Harmless no-op until the role exists.
-    property bool isNew: false
 
     signal clicked()
 
@@ -25,12 +23,9 @@ Item {
         anchors.fill: parent
         anchors.margins: 6
         radius: 16
-        color: root.isNew ? Qt.alpha(Theme.warning, 0.18) : Theme.cardBackground
+        color: Theme.cardBackground
         border.color: Theme.cardBorder
         border.width: 1
-
-        Behavior on color { ColorAnimation { duration: Theme.slowAnimation } }
-        Behavior on border.color { ColorAnimation { duration: Theme.normalAnimation } }
 
         // Soft offset shadow.
         Rectangle {
@@ -88,16 +83,6 @@ Item {
                     text: root.isPrivate ? "Private" : "Public"
                     pillColor: root.isPrivate ? Theme.error : Theme.success
                 }
-
-                // diff-merge "new" highlight; fades out after 3s
-                PillBadge {
-                    text: "new"
-                    pillColor: Theme.success
-                    opacity: root.isNew ? 1.0 : 0.0
-                    Behavior on opacity { NumberAnimation { duration: 600 } }
-                }
-
-
             }
 
             Text {

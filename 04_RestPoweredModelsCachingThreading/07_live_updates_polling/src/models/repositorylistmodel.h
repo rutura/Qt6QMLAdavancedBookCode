@@ -4,7 +4,6 @@
 #include <QAbstractListModel>
 #include <QDateTime>     // NEW
 #include <QList>
-#include <QSet>          // NEW
 #include <QString>
 #include <QTimer>        // NEW
 #include <qqml.h>
@@ -45,8 +44,7 @@ public:
         StarsRole,
         ForksRole,
         LanguageRole,
-        UrlRole,
-        IsNewRole // NEW: true for ~3s after a diff-merge insert
+        UrlRole
     };
 
 
@@ -116,7 +114,6 @@ private slots:
                                     const QString &nextUrl, bool isFirstPage);
 
     void onRefreshTick();    // background poll
-    void onClearNewFlags();  // expire the "new" highlight after 3s
 
 
 private:
@@ -142,13 +139,11 @@ private:
 
     // live-update state
     QTimer *m_refreshTimer = nullptr;
-    QTimer *m_clearNewTimer = nullptr;
     bool m_autoRefresh = false;
     int m_refreshIntervalMs = 15000;
     QDateTime m_lastRefreshAt;
     QString m_sortField = QStringLiteral("updated");
     bool m_isRefreshing = false;
-    QSet<int> m_newIds;
 };
 
 #endif // REPOSITORYLISTMODEL_H

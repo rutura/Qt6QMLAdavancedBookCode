@@ -14,7 +14,6 @@ RepositoryListModel::RepositoryListModel(QObject *parent)
     : QAbstractListModel(parent)
     , m_service(new GitHubService(this))
     , m_refreshTimer(new QTimer(this))       // NEW
-    , m_clearNewTimer(new QTimer(this))      // NEW
 {
     connect(m_service, &GitHubService::searchResultsPageReady,
             this, &RepositoryListModel::onSearchResultsPageReady);
@@ -29,14 +28,9 @@ RepositoryListModel::RepositoryListModel(QObject *parent)
     connect(m_service, &GitHubService::cachedCursorReady,
             this, &RepositoryListModel::onSearchResultsCursorReady);
 
-    // NEW: wire the refresh timer (repeating) and the clearance timer (single-shot)
     m_refreshTimer->setSingleShot(false);
     connect(m_refreshTimer, &QTimer::timeout,
             this, &RepositoryListModel::onRefreshTick);
-
-    m_clearNewTimer->setSingleShot(true);
-    connect(m_clearNewTimer, &QTimer::timeout,
-            this, &RepositoryListModel::onClearNewFlags);
 }
 
 bool RepositoryListModel::hasMore() const
@@ -176,7 +170,6 @@ QVariant RepositoryListModel::data(const QModelIndex &index, int role) const
     case ForksRole:       return repo->forksCount();
     case LanguageRole:    return repo->language();
     case UrlRole:         return repo->htmlUrl();
-    case IsNewRole:       return m_newIds.contains(repo->id());  // NEW
 
     default:              return {};
     }
@@ -192,9 +185,7 @@ QHash<int, QByteArray> RepositoryListModel::roleNames() const
         { StarsRole,       "stargazersCount" },
         { ForksRole,       "forksCount" },
         { LanguageRole,    "language" },
-        { UrlRole,         "htmlUrl" },
-        { IsNewRole,       "isNew" }   // NEW
-
+        { UrlRole,         "htmlUrl" }
     };
 }
 
@@ -393,34 +384,10 @@ void RepositoryListModel::applyDiff(const QList<Repository *> &incoming)
             Repository *r = toPrepend.at(i);
             r->setParent(this);
             m_repos.prepend(r);
-            m_newIds.insert(r->id());
         }
         endInsertRows();
-
-        // Light up IsNewRole so QML shows the green badge immediately
-        emit dataChanged(index(0), index(toPrepend.size() - 1), {IsNewRole});
-
-        // Schedule the 3s badge clearance
-        m_clearNewTimer->start(3000);
     }
 
     if (m_repos.size() != rowById.size())
         emit countChanged();
-
-
-}
-
-void RepositoryListModel::onClearNewFlags()
-{
-    if (m_newIds.isEmpty())
-        return;
-
-    const QSet<int> snapshot = m_newIds;
-    m_newIds.clear();
-
-    // Linear scan is fine; the "new" set is always small.
-    for (int i = 0; i < m_repos.size(); ++i) {
-        if (snapshot.contains(m_repos.at(i)->id()))
-            emit dataChanged(index(i), index(i), {IsNewRole});
-    }
 }
