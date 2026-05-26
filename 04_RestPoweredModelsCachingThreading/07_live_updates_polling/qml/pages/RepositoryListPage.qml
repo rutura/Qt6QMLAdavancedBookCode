@@ -58,7 +58,57 @@ Item {
                     pillColor: Theme.info
                 }
 
-                ComboBox {                                                            // NEW
+                // Sort axis combo
+                ComboBox {
+                    id: sortCombo
+                    model: ["Most updated", "Most starred"]
+                    currentIndex: repoModel.sortField === "updated" ? 0 : 1
+                    onActivated: {
+                        repoModel.sortField = (currentIndex === 0 ? "updated" : "stars")
+                        if (queryField.text.length > 0)
+                            repoModel.search(queryField.text)
+                    }
+                }
+
+                // Auto-refresh toggle
+                Switch {
+                    id: autoRefreshSwitch
+                    text: "Auto-refresh"
+                    checked: repoModel.autoRefresh
+                    enabled: !repoModel.useCursor
+                    onToggled: repoModel.autoRefresh = checked
+                }
+
+                // Poll interval picker
+                ComboBox {
+                    id: intervalCombo
+                    enabled: repoModel.autoRefresh && !repoModel.useCursor
+                    model: [
+                        { label: "15s",   ms: 15000  },
+                        { label: "30s",   ms: 30000  },
+                        { label: "60s",   ms: 60000  },
+                        { label: "5 min", ms: 300000 }
+                    ]
+                    textRole: "label"
+                    valueRole: "ms"
+                    currentIndex: 0
+                    onActivated: repoModel.refreshIntervalMs = currentValue
+                }
+
+                // "Updated Xs ago" pill
+                PillBadge {
+                    visible: repoModel.autoRefresh
+                                && repoModel.lastRefreshAt.getTime() > 0
+                    pillColor: Theme.info
+                    text: {
+                        const now  = nowTick.now
+                        const last = repoModel.lastRefreshAt.getTime()
+                        const sec  = Math.max(0, Math.floor((now - last) / 1000))
+                        return sec < 5 ? "updated just now" : "updated " + sec + "s ago"
+                    }
+                }
+
+                ComboBox {
                     id: modeCombo
                     model: ["Offset", "Cursor"]
                     currentIndex: repoModel.useCursor ? 1 : 0
@@ -99,6 +149,8 @@ Item {
                     stargazersCount: model.stargazersCount
                     forksCount: model.forksCount
                     language: model.language
+                    isNew: model.isNew   // NEW: diff-merge highlight
+
                 }
 
                 // Cursor-mode infinite scroll: a Connections block watches
@@ -162,6 +214,8 @@ Item {
         }
     }
 
+
+
     EmptyState {
         anchors.centerIn: parent
         visible: !repoModel.isLoadingPage                                  // CHANGED
@@ -170,5 +224,15 @@ Item {
         glyph: "🔍"
         title: "Search GitHub"
         subtitle: "Type a query and hit Search to explore repositories"
+    }
+
+    // Drives the "updated Xs ago" pill; re-evaluates every second
+    Timer {
+        id: nowTick
+        property double now: Date.now()
+        interval: 1000
+        running: repoModel.autoRefresh
+        repeat: true
+        onTriggered: now = Date.now()
     }
 }
