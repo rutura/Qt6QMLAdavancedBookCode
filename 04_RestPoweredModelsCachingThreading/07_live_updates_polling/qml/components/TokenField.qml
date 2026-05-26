@@ -66,7 +66,7 @@ ColumnLayout {
             font.pixelSize: 13
             verticalAlignment: TextInput.AlignVCenter
             echoMode: TextInput.Password
-            placeholderText: "ghp_…  (optional — raises rate limit)"
+            placeholderText: "ghp_…  (optional GitHub token)"
             text: root.service ? root.service.authToken : ""
             onTextChanged: {
                 if (root.service)

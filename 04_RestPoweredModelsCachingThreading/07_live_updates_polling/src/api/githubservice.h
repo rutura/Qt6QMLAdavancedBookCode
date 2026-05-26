@@ -76,8 +76,7 @@ private slots:
     void onSearchResultsPageReceived();
     void onSearchResultsCursorReceived();
 
-    void onCacheLoaded(const QString &key, const QByteArray &body,
-                       const QByteArray &etag, bool found);
+    void onCacheLoaded(const QString &key, const QByteArray &body, bool found);
 
     void onRequestFailed(QNetworkReply::NetworkError error);
 

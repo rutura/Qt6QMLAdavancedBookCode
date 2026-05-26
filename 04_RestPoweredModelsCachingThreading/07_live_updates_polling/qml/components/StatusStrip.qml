@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 // Per-page status row. `statusText` carries count/page info; `extras` is a
 // right-aligned slot later sections drop pills/controls into (parsing badge,
-// rate-limit badge, mode combo, auto-refresh switch) without restructuring.
+// mode combo, auto-refresh switch) without restructuring.
 RowLayout {
     id: root
 

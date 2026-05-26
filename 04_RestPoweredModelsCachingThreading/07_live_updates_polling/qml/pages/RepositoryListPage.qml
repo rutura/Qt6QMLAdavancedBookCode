@@ -74,12 +74,7 @@ Item {
 
                 Layout.fillWidth: true
                 visible: repoModel.service.errorMessage.length > 0
-                text: {
-                    const msg = repoModel.service.errorMessage
-                    if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("secondary rate"))
-                        return msg + "\n\nTip: add a GitHub token above to raise your rate limit, or wait for it to reset."
-                    return msg
-                }
+                text: repoModel.service.errorMessage
                 color: Theme.error
                 wrapMode: Text.WordWrap
                 font.pixelSize: 13

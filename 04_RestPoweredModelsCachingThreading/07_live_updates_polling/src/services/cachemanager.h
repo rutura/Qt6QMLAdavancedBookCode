@@ -26,14 +26,14 @@ public:
 
 public slots:
     void requestLoad(const QString &key);
-    void requestSave(const QString &key, const QByteArray &body, const QByteArray &etag);
+    void requestSave(const QString &key, const QByteArray &body);
 
 signals:
-    void loaded(const QString &key, const QByteArray &body, const QByteArray &etag, bool found);
+    void loaded(const QString &key, const QByteArray &body, bool found);
 
     // Internal-only signals used to dispatch work to the worker on its thread.
     // They cross threads via the queued connection set up in the constructor.
-    void saveRequested(const QString &key, const QByteArray &body, const QByteArray &etag);
+    void saveRequested(const QString &key, const QByteArray &body);
     void loadRequested(const QString &key);
 
 private:
