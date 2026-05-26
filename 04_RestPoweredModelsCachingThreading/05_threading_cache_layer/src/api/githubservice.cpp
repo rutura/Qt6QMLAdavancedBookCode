@@ -44,9 +44,8 @@ QList<Repository*> GitHubService::parseSearchItems(const QByteArray &body, int *
     return items;
 }
 
-void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, const QByteArray &etag, bool found)
+void GitHubService::onCacheLoaded(const QString &key, const QByteArray &body, bool found)
 {
-    Q_UNUSED(etag);
     auto it = m_pendingByKey.find(key);
     if (it == m_pendingByKey.end())
         return;
@@ -243,20 +242,14 @@ void GitHubService::onSearchResultsPageReceived()
         return;
     }
 
-    /*
-    const int page = reply->property("page").toInt();
-    const QByteArray data = reply->readAll();
-    reply->deleteLater();
-    */
     const int page = reply->property("page").toInt();
     const QString cacheKey = reply->url().toString();
-    const QByteArray etag = reply->rawHeader("ETag");
     const QByteArray data = reply->readAll();
     reply->deleteLater();
 
     // NEW: persist this fresh response for next time.
     if (m_cache && !data.isEmpty()) {
-        m_cache->requestSave(cacheKey, data, etag);
+        m_cache->requestSave(cacheKey, data);
     }
 
 
@@ -303,13 +296,12 @@ void GitHubService::onSearchResultsCursorReceived()
     const QString nextUrl = parseNextLink(linkHeader);
 
     const QString cacheKey = reply->url().toString();
-    const QByteArray etag = reply->rawHeader("ETag");
 
     const QByteArray data = reply->readAll();
     reply->deleteLater();
 
     if (m_cache && !data.isEmpty()) {
-        m_cache->requestSave(cacheKey, data, etag);
+        m_cache->requestSave(cacheKey, data);
     }
 
     QJsonParseError parseError;

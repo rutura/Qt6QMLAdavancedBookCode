@@ -39,7 +39,7 @@ void CacheManager::requestLoad(const QString &key)
     emit loadRequested(key);
 }
 
-void CacheManager::requestSave(const QString &key, const QByteArray &body, const QByteArray &etag)
+void CacheManager::requestSave(const QString &key, const QByteArray &body)
 {
-    emit saveRequested(key, body, etag);
+    emit saveRequested(key, body);
 }
