@@ -88,14 +88,6 @@ Item {
                     text: root.isPrivate ? "Private" : "Public"
                     pillColor: root.isPrivate ? Theme.error : Theme.success
                 }
-
-                // NEW: diff-merge "new" highlight; fades out after 3s via IsNewRole dataChanged
-                PillBadge {
-                    text: "new"
-                    pillColor: Theme.success
-                    opacity: root.isNew ? 1.0 : 0.0
-                    Behavior on opacity { NumberAnimation { duration: 600 } }
-                }
             }
 
             Text {

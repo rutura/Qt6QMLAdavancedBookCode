@@ -2,11 +2,8 @@
 #define REPOSITORYLISTMODEL_H
 
 #include <QAbstractListModel>
-#include <QDateTime>     // NEW
 #include <QList>
-#include <QSet>          // NEW
 #include <QString>
-#include <QTimer>        // NEW
 #include <qqml.h>
 
 class GitHubService;
@@ -29,12 +26,6 @@ class RepositoryListModel : public QAbstractListModel
     Q_PROPERTY(bool useCursor READ useCursor WRITE setUseCursor NOTIFY useCursorChanged)  // NEW
     Q_PROPERTY(QString nextUrl READ nextUrl NOTIFY nextUrlChanged)
 
-    // NEW: live-update surface
-    Q_PROPERTY(bool autoRefresh READ autoRefresh WRITE setAutoRefresh NOTIFY autoRefreshChanged)
-    Q_PROPERTY(int refreshIntervalMs READ refreshIntervalMs WRITE setRefreshIntervalMs NOTIFY refreshIntervalMsChanged)
-    Q_PROPERTY(QDateTime lastRefreshAt READ lastRefreshAt NOTIFY lastRefreshAtChanged)
-    Q_PROPERTY(QString sortField READ sortField WRITE setSortField NOTIFY sortFieldChanged)
-
 public:
     enum Roles {
         IdRole = Qt::UserRole + 1,
@@ -44,8 +35,7 @@ public:
         StarsRole,
         ForksRole,
         LanguageRole,
-        UrlRole,
-        IsNewRole        // NEW: true for ~3s after diff-merge insert
+        UrlRole
     };
 
 
@@ -73,16 +63,8 @@ public:
     bool useCursor() const { return m_useCursor; }           // NEW
     QString nextUrl() const { return m_nextUrl; }            // NEW
 
-    bool autoRefresh() const { return m_autoRefresh; }                  // NEW
-    int refreshIntervalMs() const { return m_refreshIntervalMs; }       // NEW
-    QDateTime lastRefreshAt() const { return m_lastRefreshAt; }         // NEW
-    QString sortField() const { return m_sortField; }                   // NEW
-
     void setPerPage(int perPage);
     void setUseCursor(bool useCursor);                       // NEW
-    void setAutoRefresh(bool autoRefresh);                   // NEW
-    void setRefreshIntervalMs(int intervalMs);               // NEW
-    void setSortField(const QString &field);                 // NEW
 
 
     Q_INVOKABLE void search(const QString &query);
@@ -101,20 +83,12 @@ signals:
     void useCursorChanged();      // NEW
     void nextUrlChanged();        // NEW
 
-    void autoRefreshChanged();           // NEW
-    void refreshIntervalMsChanged();     // NEW
-    void lastRefreshAtChanged();         // NEW
-    void sortFieldChanged();             // NEW
-
 private slots:
     void onSearchResultsPageReady(const QList<Repository*> &repositories,
                                   int page, int totalCount);
 
     void onSearchResultsCursorReady(const QList<Repository*> &repositories,    // NEW
                                     const QString &nextUrl, bool isFirstPage);
-
-    void onRefreshTick();    // NEW: background poll
-    void onClearNewFlags();  // NEW: expire the "new" highlight after 3s
 
 
 private:
@@ -124,7 +98,6 @@ private:
 
     void appendBatch(const QList<Repository*> &batch);
     void resetWith(const QList<Repository*> &batch);
-    void applyDiff(const QList<Repository*> &incoming);  // NEW: three-pass diff-merge
 
     GitHubService *m_service;
     QList<Repository*> m_repos;
@@ -135,17 +108,6 @@ private:
     bool m_isLoadingPage = false;
     bool m_useCursor = false;     // NEW: default to offset mode
     QString m_nextUrl;            // NEW: the stored cursor
-
-    // NEW: live-update state
-    QTimer *m_refreshTimer = nullptr;
-    QTimer *m_clearNewTimer = nullptr;
-    QTimer *m_debugCountdownTimer = nullptr;  // NEW: prints countdown every 2s when auto-refresh is on
-    bool m_autoRefresh = false;
-    int m_refreshIntervalMs = 15000;  // 15s default
-    QDateTime m_lastRefreshAt;
-    QString m_sortField = QStringLiteral("updated");
-    bool m_isRefreshing = false;  // true while a background tick response is in flight
-    QSet<int> m_newIds;           // repo ids currently flagged IsNewRole
 };
 
 #endif // REPOSITORYLISTMODEL_H
