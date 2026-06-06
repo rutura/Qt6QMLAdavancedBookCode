@@ -1,5 +1,140 @@
 #include "issuelistmodel.h"
+#include "githubservice.h"
+#include "issue.h"
+#include "cachemanager.h"
 
 IssueListModel::IssueListModel(QObject *parent)
-    : QObject{parent}
-{}
+    : QAbstractListModel(parent)
+    , m_service(new GitHubService(this))
+{
+    connect(m_service, &GitHubService::issueSearchResultsReady,
+            this, &IssueListModel::onSearchResultsReady);
+
+    m_service->setCache(CacheManager::create(nullptr, nullptr));
+}
+
+int IssueListModel::rowCount(const QModelIndex &parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return m_issues.size();
+}
+
+QVariant IssueListModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_issues.size())
+        return {};
+
+    const Issue *issue = m_issues.at(index.row());
+    switch (role) {
+    case IdRole:           return issue->id();
+    case NumberRole:       return issue->number();
+    case TitleRole:        return issue->title();
+    case StateRole:        return issue->state();
+    case BodyRole:         return issue->body();
+    case HtmlUrlRole:      return issue->htmlUrl();
+    case RepoFullNameRole: return issue->repoFullName();
+    case CommentsCountRole:return issue->commentsCount();
+    case UserLoginRole:    return issue->userLogin();
+    case CreatedAtRole:    return issue->createdAt();
+    default:               return {};
+    }
+}
+
+QHash<int, QByteArray> IssueListModel::roleNames() const
+{
+    return {
+        { IdRole,            "issueId" },
+        { NumberRole,        "number" },
+        { TitleRole,         "title" },
+        { StateRole,         "state" },
+        { BodyRole,          "body" },
+        { HtmlUrlRole,       "htmlUrl" },
+        { RepoFullNameRole,  "repoFullName" },
+        { CommentsCountRole, "commentsCount" },
+        { UserLoginRole,     "userLogin" },
+        { CreatedAtRole,     "createdAt" }
+    };
+}
+
+void IssueListModel::search(const QString &query)
+{
+    if (query.isEmpty() || m_isLoadingPage)
+        return;
+
+    m_currentQuery = query;
+    m_currentPage = 1;
+    emit currentPageChanged();
+    setIsLoadingPage(true);
+    m_service->searchIssues(query, m_currentPage, m_perPage);
+}
+
+void IssueListModel::loadMore()
+{
+    if (m_isLoadingPage || m_currentQuery.isEmpty() || !hasMore())
+        return;
+
+    setIsLoadingPage(true);
+    const int nextPage = m_currentPage + 1;
+    m_service->searchIssues(m_currentQuery, nextPage, m_perPage);
+}
+
+void IssueListModel::onSearchResultsReady(const QList<Issue*> &issues,
+                                          int page, int totalCount)
+{
+    setIsLoadingPage(false);
+    setTotalCount(totalCount);
+
+    if (page == 1)
+        resetWith(issues);
+    else
+        appendBatch(issues);
+
+    m_currentPage = page;
+    emit currentPageChanged();
+    emit hasMoreChanged();
+}
+
+void IssueListModel::setIsLoadingPage(bool loading)
+{
+    if (m_isLoadingPage != loading) {
+        m_isLoadingPage = loading;
+        emit isLoadingPageChanged();
+    }
+}
+
+void IssueListModel::setTotalCount(int total)
+{
+    if (m_totalCount != total) {
+        m_totalCount = total;
+        emit totalCountChanged();
+    }
+}
+
+void IssueListModel::resetWith(const QList<Issue*> &batch)
+{
+    beginResetModel();
+    qDeleteAll(m_issues);
+    m_issues.clear();
+    m_issues = batch;
+    for (Issue *i : m_issues)
+        i->setParent(this);
+    endResetModel();
+    emit countChanged();
+}
+
+void IssueListModel::appendBatch(const QList<Issue*> &batch)
+{
+    if (batch.isEmpty())
+        return;
+
+    const int first = m_issues.size();
+    const int last = first + batch.size() - 1;
+    beginInsertRows({}, first, last);
+    for (Issue *i : batch) {
+        i->setParent(this);
+        m_issues.append(i);
+    }
+    endInsertRows();
+    emit countChanged();
+}

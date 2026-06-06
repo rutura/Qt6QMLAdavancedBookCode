@@ -401,3 +401,123 @@ QNetworkRequest GitHubService::buildRequest(const QUrl &url) const
     return request;
 }
 
+void GitHubService::searchIssues(const QString &query, int page, int perPage,
+                                 const QString &sort, const QString &order)
+{
+    if (m_isLoading || query.isEmpty())
+        return;
+
+    setIsLoading(true);
+    setErrorMessage(QString());
+
+    // "is:issue" scopes results to issues only, not pull requests
+    QUrl url(QString("https://api.github.com/search/issues"
+                     "?q=%1+is:issue&sort=%2&order=%3&per_page=%4&page=%5")
+                 .arg(query, sort, order)
+                 .arg(perPage)
+                 .arg(page));
+
+    QNetworkReply *reply = m_networkManager->get(buildRequest(url));
+    reply->setProperty("page", page);
+
+    connect(reply, &QNetworkReply::finished,
+            this, &GitHubService::onIssueSearchResultsReceived);
+    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
+            this, &GitHubService::onRequestFailed);
+}
+
+
+void GitHubService::onIssueSearchResultsReceived()
+{
+    QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        setIsLoading(false);
+        setErrorMessage("Invalid response received");
+        return;
+    }
+
+    setIsLoading(false);
+
+    if (reply->error() != QNetworkReply::NoError) {
+        reply->deleteLater();
+        return;
+    }
+
+    const int page = reply->property("page").toInt();
+    const QByteArray data = reply->readAll();
+    reply->deleteLater();
+
+    int total = 0;
+    const QList<Issue*> issues = Issue::listFromJsonBytes(data, &total);
+    if (issues.isEmpty() && total == 0 && !data.isEmpty()) {
+        setErrorMessage("Failed to parse issue search response");
+        return;
+    }
+    emit issueSearchResultsReady(issues, page, total);
+}
+
+void GitHubService::searchUsers(const QString &query, int page, int perPage,
+                                const QString &sort, const QString &order)
+{
+    if (m_isLoading || query.isEmpty())
+        return;
+
+    setIsLoading(true);
+    setErrorMessage(QString());
+
+    QUrl url(QString("https://api.github.com/search/users"
+                     "?q=%1&sort=%2&order=%3&per_page=%4&page=%5")
+                 .arg(query, sort, order)
+                 .arg(perPage)
+                 .arg(page));
+
+    QNetworkReply *reply = m_networkManager->get(buildRequest(url));
+    reply->setProperty("page", page);
+
+    connect(reply, &QNetworkReply::finished,
+            this, &GitHubService::onUserSearchResultsReceived);
+    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
+            this, &GitHubService::onRequestFailed);
+}
+
+void GitHubService::onUserSearchResultsReceived()
+{
+    QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        setIsLoading(false);
+        setErrorMessage("Invalid response received");
+        return;
+    }
+
+    setIsLoading(false);
+
+    if (reply->error() != QNetworkReply::NoError) {
+        reply->deleteLater();
+        return;
+    }
+
+    const int page = reply->property("page").toInt();
+    const QByteArray data = reply->readAll();
+    reply->deleteLater();
+
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        setErrorMessage("Failed to parse user search response");
+        return;
+    }
+
+    const QJsonObject root = doc.object();
+    const int total = root.value("total_count").toInt();
+    const QJsonArray items = root.value("items").toArray();
+
+    QList<User*> users;
+    users.reserve(items.size());
+    for (const QJsonValue &v : items) {
+        if (v.isObject())
+            users.append(User::fromJson(v.toObject(), nullptr));
+    }
+
+    emit userSearchResultsReady(users, page, total);
+}
+
