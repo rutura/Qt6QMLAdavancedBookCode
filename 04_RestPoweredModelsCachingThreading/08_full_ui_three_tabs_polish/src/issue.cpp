@@ -110,3 +110,25 @@ Issue* Issue::fromJson(const QJsonObject &json, QObject *parent)
 
     return issue;
 }
+
+
+QList<Issue*> Issue::listFromJsonBytes(const QByteArray &bytes, int *totalCountOut)
+{
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &err);
+    QList<Issue*> result;
+    if (err.error != QJsonParseError::NoError || !doc.isObject())
+        return result;
+
+    const QJsonObject root = doc.object();
+    if (totalCountOut)
+        *totalCountOut = root.value("total_count").toInt();
+
+    const QJsonArray items = root.value("items").toArray();
+    result.reserve(items.size());
+    for (const QJsonValue &v : items) {
+        if (v.isObject())
+            result.append(Issue::fromJson(v.toObject(), nullptr));
+    }
+    return result;
+}

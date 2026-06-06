@@ -61,8 +61,10 @@ qt_add_qml_module(RepoExplorerPro
         src/api/githubservice.cpp
         src/models/repositorylistmodel.h
         src/models/repositorylistmodel.cpp
-        src/models/issuelistmodel.h			# NEW
-        src/models/issuelistmodel.cpp			# NEW
+        src/models/issuelistmodel.h
+        src/models/issuelistmodel.cpp
+        src/models/userlistmodel.h	# NEW
+        src/models/userlistmodel.cpp	# NEW
         src/workers/cacheworker.h
         src/workers/cacheworker.cpp
         src/services/cachemanager.h
