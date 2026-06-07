@@ -19,6 +19,8 @@ set(PROJECT_SOURCES
 set(QML_FILES
     qml/Main.qml
     qml/pages/RepositoryListPage.qml
+    qml/pages/IssueListPage.qml
+    qml/pages/UserListPage.qml
     qml/components/ThemeToggle.qml
     qml/components/AppHeader.qml
     qml/components/SearchField.qml
@@ -30,6 +32,8 @@ set(QML_FILES
     qml/components/ListContainer.qml
     qml/components/EmptyState.qml
     qml/components/LoadingOverlay.qml
+    qml/components/IssueCard.qml
+    qml/components/UserCard.qml
 )
 
 # Theme.qml is a QML singleton (it starts with `pragma Singleton`). This
