@@ -72,6 +72,13 @@ ApplicationWindow {
             RepositoryListPage {
             }
 
+            IssueListPage {              // NEW: replaces the placeholder
+            }
+
+            UserListPage {               // NEW: replaces the placeholder
+            }
+
+            /*
             Item {
                 EmptyState {
                     anchors.centerIn: parent
@@ -89,6 +96,7 @@ ApplicationWindow {
                     subtitle: "Activated in section 09"
                 }
             }
+            */
         }
     }
 }
