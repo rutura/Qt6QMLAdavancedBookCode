@@ -6,7 +6,7 @@ Window {
     width: 400
     height: 280
     visible: true
-    title: "QmlAdvCore — 01: Library Skeleton"
+    title: "QmlAdvCore — 02: Object Properties"
 
     Column {
         anchors.centerIn: parent
