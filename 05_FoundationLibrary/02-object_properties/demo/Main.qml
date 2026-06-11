@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import QmlAdvCore
+//import QmlAdvCore
 
 Window {
     width: 400

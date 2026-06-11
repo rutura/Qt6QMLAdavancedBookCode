@@ -2,7 +2,6 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 
 qt_add_executable(tst_version
     tst_version.cpp
-    tst_theme.cpp
 )
 
 target_link_libraries(tst_version
