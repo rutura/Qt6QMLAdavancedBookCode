@@ -3,66 +3,111 @@ import QtQuick.Controls
 import QmlAdvCore
 
 Window {
-    width: 400
-    height: 280
+    width: 480
+    height: 520
     visible: true
-    title: "QmlAdvCore — 02: Object Properties"
+    title: "QmlAdvCore — 03: List Properties"
 
+    FormGroup {
+        id: loginForm
+        title: "Sign In"
+        fields: [
+            FormField {
+                label: "Username"
+                placeholder: "Enter username"
+                required: true
+            },
+            FormField {
+                label: "Password"
+                placeholder: "Enter password"
+                required: true
+            },
+            FormField {
+                label: "Display name"
+                placeholder: "Optional display name"
+            }
+        ]
+    }
+
+    // Column layout goes here
     Column {
         anchors.centerIn: parent
-        //spacing: 16
         spacing: Theme.spacing.medium
+        width: 380
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "QmlAdvCore"
-            font.pixelSize: 28
+            text: loginForm.title
+            font.pixelSize: 22
             font.bold: true
+            color: Theme.colors.primary
         }
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Version: " + Version.string
-            font.pixelSize: 18
-            color: "#6750A4"
+            text: "Fields in group: " + loginForm.fieldCount
+            font.pixelSize: 13
+            color: Theme.colors.secondary
+        }
+
+        //Repeater here
+        Repeater {
+            model: loginForm.fieldCount
+            delegate: Column {
+                width: 380
+                spacing: 4
+
+                Row {
+                    spacing: 4
+                    Text {
+                        text: loginForm.fieldAt(index).label
+                        font.pixelSize: 14
+                        color: "#1C1B1F"
+                    }
+                    Text {
+                        visible: loginForm.fieldAt(index).required
+                        text: "*"
+                        font.pixelSize: 14
+                        color: Theme.colors.primary
+                    }
+                }
+
+                Rectangle {
+                    width: 380
+                    height: 44
+                    radius: 6
+                    color: Theme.colors.surface
+                    border.color: Theme.colors.secondary
+                    border.width: 1
+
+                    Text {
+                        anchors {
+                            left: parent.left
+                            leftMargin: Theme.spacing.small
+                            verticalCenter: parent.verticalCenter
+                        }
+                        text: loginForm.fieldAt(index).placeholder
+                        font.pixelSize: 13
+                        color: "#CAC4D0"
+                    }
+                }
+            }
         }
 
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 180
-            height: 40
+            width: 160
+            height: 44
             radius: 8
             color: Theme.colors.primary
 
             Text {
                 anchors.centerIn: parent
-                text: "Theme.colors.primary"
-                font.pixelSize: 12
+                text: "Submit"
+                font.pixelSize: 14
+                font.bold: true
                 color: Theme.colors.onPrimary
             }
         }
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "Primary: " + Theme.colors.primary
-            font.pixelSize: 14
-            color: "#49454F"
-        }
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "Spacing medium: " + Theme.spacing.medium
-            font.pixelSize: 14
-            color: "#49454F"
-        }
-
-        /*
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "QML_SINGLETON + QML_ELEMENT working ✓"
-            font.pixelSize: 14
-            color: "#49454F"
-        }
-        */
     }
 }

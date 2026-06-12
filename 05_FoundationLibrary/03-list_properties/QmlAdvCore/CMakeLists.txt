@@ -20,6 +20,10 @@ qt_add_qml_module(QmlAdvCore
         src/spacinggroup.cpp
         src/theme.h
         src/theme.cpp
+        src/formfield.h
+        src/formfield.cpp
+        src/formgroup.h 
+        src/formgroup.cpp
 )
 
 target_include_directories(QmlAdvCore PUBLIC src)
