@@ -22,3 +22,15 @@ target_link_libraries(tst_theme
 )
 
 add_test(NAME tst_theme COMMAND tst_theme)
+
+
+qt_add_executable(tst_formgroup
+    tst_formgroup.cpp
+)
+
+target_link_libraries(tst_formgroup
+    PRIVATE Qt6::Test
+    PRIVATE QmlAdvCore
+)
+
+add_test(NAME tst_formgroup COMMAND tst_formgroup)
