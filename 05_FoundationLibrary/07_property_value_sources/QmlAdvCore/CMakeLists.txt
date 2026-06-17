@@ -32,6 +32,8 @@ qt_add_qml_module(QmlAdvCore
         src/formattached.cpp
         src/form.h
         src/form.cpp
+        src/pulse.h
+        src/pulse.cpp
 )
 
 target_include_directories(QmlAdvCore PUBLIC src)
