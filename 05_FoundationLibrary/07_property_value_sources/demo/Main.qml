@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QmlAdvCore
 
 Window {
@@ -127,10 +126,23 @@ Window {
 
         // toggle button goes here
         // toggle button goes here
-        Button {
+        Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: fastPulse.running ? "Pause fast pulse" : "Resume fast pulse"
-            onClicked: fastPulse.running = !fastPulse.running
+            width: 220; height: 60
+            radius: 8
+            color: Theme.colors.secondary
+
+            Text {
+                anchors.centerIn: parent
+                text: fastPulse.running ? qsTr("Pause fast pulse") : qsTr("Resume fast pulse")
+                color: "white"
+                font.pixelSize: 14
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: fastPulse.running = !fastPulse.running
+            }
         }
     }
 }

@@ -71,3 +71,16 @@ target_link_libraries(tst_formattached
 )
 
 add_test(NAME tst_formattached COMMAND tst_formattached)
+
+
+qt_add_executable(tst_pulse
+    tst_pulse.cpp
+)
+
+target_link_libraries(tst_pulse
+    PRIVATE Qt6::Quick
+    PRIVATE Qt6::Test
+    PRIVATE QmlAdvCore
+)
+
+add_test(NAME tst_pulse COMMAND tst_pulse)
