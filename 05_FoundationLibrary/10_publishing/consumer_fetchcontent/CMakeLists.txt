@@ -11,7 +11,12 @@ include(FetchContent)
 
 FetchContent_Declare(
     QmlAdvCore
-    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../QmlAdvCore"
+    # Before (local testing):
+    #SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../QmlAdvCore"
+
+    # After (real GitHub URL + version tag):
+    GIT_REPOSITORY https://github.com/<you>/QmlAdvCore.git
+    GIT_TAG        v1.0.0
 )
 
 FetchContent_MakeAvailable(QmlAdvCore)
