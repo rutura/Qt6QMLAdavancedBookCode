@@ -15,7 +15,7 @@ FetchContent_Declare(
     #SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../QmlAdvCore"
 
     # After (real GitHub URL + version tag):
-    GIT_REPOSITORY https://github.com/<you>/QmlAdvCore.git
+    GIT_REPOSITORY https://github.com/rutura/QmlAdvCore.git
     GIT_TAG        v1.0.0
 )
 
