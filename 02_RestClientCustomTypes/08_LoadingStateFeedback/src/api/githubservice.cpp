@@ -62,8 +62,7 @@ void GitHubService::fetchUserRepositories(const QString &username)
     reply->setProperty("requestType", "userRepositories");
 
     connect(reply, &QNetworkReply::finished, this, &GitHubService::onUserRepositoriesReceived);
-    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
-            this, &GitHubService::onRequestFailed);
+    connect(reply, &QNetworkReply::errorOccurred, this, &GitHubService::onRequestFailed);
 }
 
 
@@ -93,8 +92,7 @@ void GitHubService::fetchAuthenticatedUserRepositories()
     reply->setProperty("requestType", "userRepositories");
 
     connect(reply, &QNetworkReply::finished, this, &GitHubService::onUserRepositoriesReceived);
-    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
-            this, &GitHubService::onRequestFailed);
+    connect(reply, &QNetworkReply::errorOccurred, this, &GitHubService::onRequestFailed);
 }
 
 void GitHubService::fetchRepository(const QString &owner, const QString &repo)
@@ -120,8 +118,7 @@ void GitHubService::fetchRepository(const QString &owner, const QString &repo)
     reply->setProperty("requestType", "singleRepository");
 
     connect(reply, &QNetworkReply::finished, this, &GitHubService::onRepositoryReceived);
-    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
-            this, &GitHubService::onRequestFailed);
+    connect(reply, &QNetworkReply::errorOccurred, this, &GitHubService::onRequestFailed);
 }
 
 
@@ -151,8 +148,7 @@ void GitHubService::searchRepositories(const QString &query, const QString &sort
     reply->setProperty("requestType", "searchRepositories");
 
     connect(reply, &QNetworkReply::finished, this, &GitHubService::onSearchResultsReceived);
-    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::errorOccurred),
-            this, &GitHubService::onRequestFailed);
+    connect(reply, &QNetworkReply::errorOccurred, this, &GitHubService::onRequestFailed);
 }
 
 void GitHubService::clearRepositories()
